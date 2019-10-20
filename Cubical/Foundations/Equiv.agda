@@ -113,11 +113,6 @@ compIso i j = equivToIso (compEquiv (isoToEquiv i) (isoToEquiv j))
 LiftEquiv : {A : Type ℓ} → A ≃ Lift {i = ℓ} {j = ℓ'} A
 LiftEquiv = isoToEquiv (iso lift lower (λ _ → refl) (λ _ → refl))
 
--- module _ {ℓ ℓ'} {A : Type ℓ} {B : Type ℓ'}  where
---   invEquivInvol : (f : A ≃ B) → invEquiv (invEquiv f) ≡ f
---   invEquivInvol f i .fst = fst f
---   invEquivInvol f i .snd = propIsEquiv (fst f) (snd (invEquiv (invEquiv f))) (snd f) i
-
 PropEquiv→Equiv : (Aprop : isProp A) (Bprop : isProp B) (f : A → B) (g : B → A) → (A ≃ B)
 PropEquiv→Equiv Aprop Bprop f g = isoToEquiv (iso f g (λ b → Bprop (f (g b)) b) λ a → Aprop (g (f a)) a)
 
