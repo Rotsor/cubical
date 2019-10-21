@@ -176,13 +176,12 @@ _∘e_ = compEquiv
 inv-e : ∀ {A B : Set} → A ≃ B → B ≃ A
 inv-e e = invEquiv e
 
--- WARNING: IN FACT IT DOES THE OPPOSITE OF WHAT IT SAYS
--- extract-fin i takes i-th element to the 0-th position
+-- extract-fin i takes the 0-th element to the i-th position
 -- and leaves relative order of remaining numbers unchanged
 -- so e.g. [extract-fin 2] does this:
--- 0 <-> 1
--- 1 <-> 2
--- 2 <-> 0
+-- 0 <-> 2
+-- 1 <-> 0
+-- 2 <-> 1
 -- 3 <-> 3
 -- 4 <-> 4
 extract-fin : ∀ {n} → Fin n → Fin n ≃ Fin n
@@ -450,19 +449,16 @@ module FMSetRec {B : Set}
     → Lemma e₂
     → Lemma (compEquiv e₁ e₂)
   lemma-compose e₁ e₂ e₁-lemma e₂-lemma =
-    lemma-compose-with-proof e₁ e₂ _ (λ _ → compEquiv e₁ e₂) e₁-lemma e₂-lemma
+    lemma-compose-with-proof _ _ _ (λ _ → compEquiv e₁ e₂) e₁-lemma e₂-lemma
 
   lemma-extract-fin : ∀ {m} (k : Fin m) → Lemma (extract-fin k)
   lemma-extract-fin {m = zero} x = ⊥-elim (x)
   lemma-extract-fin {m = suc m} (fzero) = id-lemma
-  lemma-extract-fin {m = suc zero} (fsuc k) = ⊥-elim ((k)) 
+  lemma-extract-fin {m = suc zero} (fsuc k) = ⊥-elim k
   lemma-extract-fin {m = suc (suc m)} (fsuc x) =
-    lemma-compose
-      finSwap
-      (cong-suc (extract-fin (x)))
+    lemma-compose _ _
       lemma-swap
-      (cong-suc-lemma ((extract-fin (x))) rec) where
-     rec = lemma-extract-fin {m = suc m} (x)
+      (cong-suc-lemma _ (lemma-extract-fin {m = suc m} (x)))
 
   lemma : ∀ {m n}
     → (e : Fin m ≃ Fin n)
@@ -473,7 +469,7 @@ module FMSetRec {B : Set}
        (i = i1) → fold values }) []*
   lemma {zero} {suc _} e = ⊥-elim ((fst (fst (equiv-proof (snd e) fzero))))
   lemma {suc _} {zero} e = ⊥-elim ((fst e fzero))
-  lemma {suc m'} {suc n'} e = lemma-compose-with-proof e₁ e₂ e e-proof e₁-lemma e₂-lemma
+  lemma {suc m'} {suc n'} e = lemma-compose-with-proof _ _ _ e-proof e₁-lemma e₂-lemma
       
    where
     e₁' = fst (decompose-equiv' e)
