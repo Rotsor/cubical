@@ -197,12 +197,6 @@ equiv-unique-preimage e {w = w} px py =  λ i →
     (λ i → (snd (equiv-proof (snd e) w) (_ , px)) (~ i))
     ∙ (snd (equiv-proof (snd e) w) (_ , py))) i) 
 
-equal-function-means-equal-equiv :
-  ∀ {A B : Set} (e₁ e₂ : A ≃ B) →
-  (∀ x → fst e₁ x ≡ fst e₂ x)
-  → e₁ ≡ e₂
-equal-function-means-equal-equiv e₁ e₂ prf = equivEq e₁ e₂ (λ i x → prf x i)
-
 fsnotz : ∀ {n} {a : Fin n} → fsuc a ≡ fzero → ⊥
 fsnotz {n} e = transport (λ i → fam (e i)) tt where
   fam : Fin (suc n) → Set
@@ -213,7 +207,7 @@ decompose-equiv-helper : ∀ {m n} → (e : Fin (suc m) ≃ Fin (suc n))
   → fst e fzero ≡ fzero
   → 
   Σ (Fin m ≃ Fin n) (λ e' → e ≡ cong-suc e')
-decompose-equiv-helper {m} {n} e z-z = equiv , equal-function-means-equal-equiv _ _ equal where
+decompose-equiv-helper {m} {n} e z-z = equiv , equivEq _ _ (λ i x → equal x i) where
 
   z-z-inv : fst (invEquiv e) fzero ≡ fzero
   z-z-inv = cong fst (snd (equiv-proof (snd e) fzero) (fzero , z-z))
@@ -248,9 +242,8 @@ decompose-equiv-helper {m} {n} e z-z = equiv , equal-function-means-equal-equiv 
   e-erase-1 i x = fst (snd (equiv-proof (snd e) (e-to x)) (x , (λ _ → e-to x)) i)
 
   e-erase-2 : e-to ∘ e-from ≡ (λ x → x)
-  e-erase-2 i x = x0-good i where
-    x0 = fst (fst (equiv-proof (snd e) x))
-    x0-good = snd (fst (equiv-proof (snd e) x))
+  e-erase-2 i x = snd fibre i where
+    fibre = (fst (equiv-proof (snd e) x))
 
   to-from : ∀ x → to (from x) ≡ x
   to-from x0 = prf where
@@ -303,40 +296,18 @@ mk-equivMaps {A} {B} e x y prf i = glue (λ { (i = i0) → _; (i = i1) → _ }) 
 equivMaps' : ∀ {A B : Set} (e : A ≃ B) (x : A) (y : B) → Set
 equivMaps' e x y = fst e x ≡ y
 
-equivMaps'-comp :
-  ∀ {A B C : Set}
-  → (e₁ : A ≃ B) (e₂ : B ≃ C)
-  → (x : A) (y : B) (z : C)
-  → equivMaps' e₁ x y → equivMaps' e₂ y z
-  → equivMaps' (e₁ ∘e e₂) x z
-equivMaps'-comp e₁ e₂ x y z prf₁ prf₂ = cong (fst e₂) prf₁ ∙ prf₂  
-
-equivMaps'-inv :
+equiv-invert-fiber :
   ∀ {A B : Set}
   → (e : A ≃ B) 
-  → (x : A) (y : B)
-  → equivMaps' e x y → equivMaps' (invEquiv e) y x
-equivMaps'-inv e x y prf = cong fst (snd (equiv-proof (snd e) y) (x , prf))
+  → {x : A} {y : B}
+  → (fst e) x ≡ y → fst (invEquiv e) y ≡ x
+equiv-invert-fiber e {x} {y} prf = cong fst (snd (equiv-proof (snd e) y) (x , prf))
 
-cong-suc-equivMaps : ∀ {m n} (e : Fin m ≃ Fin n) x y → equivMaps' e x y → equivMaps' (cong-suc e) (fsuc x) (fsuc y)
-cong-suc-equivMaps e x y prf = cong fsuc prf
-
-extract-fin-spec-simple : ∀ {m} (k : Fin (suc m)) → equivMaps' (extract-fin k) fzero k
-extract-fin-spec-simple fzero = ((λ _ → fzero))
-extract-fin-spec-simple {zero} (fsuc x) = (⊥-elim ((x)))
-extract-fin-spec-simple {suc m} (fsuc x) =  equivMaps'-comp finSwap (cong-suc extract-rec) fzero (fsuc fzero) (fsuc x) swap-one rec-congsuc  where
-
-  extract-rec = (extract-fin (x))
+extract-fin-spec : ∀ {m} (k : Fin (suc m)) → fst (extract-fin k) fzero ≡ k
+extract-fin-spec fzero = ((λ _ → fzero))
+extract-fin-spec {zero} (fsuc x) = ⊥-elim x
+extract-fin-spec {suc m} (fsuc x) = cong fsuc (extract-fin-spec x)
   
-  rec : equivMaps' extract-rec fzero (x)
-  rec = extract-fin-spec-simple (x)
-
-  rec-congsuc : equivMaps' (cong-suc (extract-rec)) (fsuc fzero) (fsuc x)
-  rec-congsuc = cong-suc-equivMaps (extract-rec) fzero (x) rec where
-
-  swap-one : ∀ {m} → equivMaps' (finSwap {m}) fzero (fsuc fzero) 
-  swap-one = λ i → fsuc fzero
-
 decompose-equiv' : ∀ {m n} → (e : Fin (suc m) ≃ Fin (suc n)) →
   Σ (Fin m ≃ Fin n)
     (λ e' → e ≡ (cong-suc e' ∘e (extract-fin (fst e fzero))))
@@ -346,14 +317,8 @@ decompose-equiv' e = e' , e-proof where
   cong-suc-e' = e ∘e (invEquiv extr)
 
   maps-zero-to-zero : fst cong-suc-e' fzero ≡ fzero
-  maps-zero-to-zero = equivMaps'-comp  e (invEquiv extr) fzero (fst e fzero) fzero part1 part2 where
-    extract-spec = extract-fin-spec-simple (fst e fzero)
-
-    part1 : equivMaps' e fzero (fst e fzero)
-    part1 = λ i → fst e fzero
-
-    part2 : equivMaps' (invEquiv extr) (fst e fzero) fzero
-    part2 = equivMaps'-inv extr fzero (fst e fzero) extract-spec
+  maps-zero-to-zero = equiv-invert-fiber extr extract-spec where
+    extract-spec = extract-fin-spec (fst e fzero)
 
   helper = decompose-equiv-helper cong-suc-e' maps-zero-to-zero
   e' = fst helper
