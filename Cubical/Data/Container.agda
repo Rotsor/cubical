@@ -165,12 +165,10 @@ module Cong-suc-manual where
       retr fzero = (λ _ → fzero)
       retr (fsuc x) i = fsuc (retr0 x i)
 
-  cong-suc-simple : ∀ {m n} → Fin m ≃ Fin n → Fin (suc m) ≃ Fin (suc n)
-  cong-suc-simple {m} {n} e = isoToEquiv (cong-suc-iso (equivToIso e))
+  cong-suc : ∀ {m n} → Fin m ≃ Fin n → Fin (suc m) ≃ Fin (suc n)
+  cong-suc {m} {n} e = isoToEquiv (cong-suc-iso (equivToIso e))
 
 open Cong-suc-manual
-
-cong-suc = cong-suc-simple
 
 _∘e_ : ∀ {A B C : Set} → A ≃ B → B ≃ C → A ≃ C
 _∘e_ = compEquiv
@@ -394,111 +392,47 @@ module FMSetRec {B : Set}
   Lemma : ∀ {m n} (e : Fin m ≃ Fin n) → Set
   Lemma {m} {n} e = PathP (λ i → Fold (ua e i)) (fold {m}) (fold {n})
 
-  general-lemma-refl :
-    ∀ {K R : Set}
-    → ∀ f
-    → PathP (λ i → (ua (idEquiv K) i → A) → R) f f
-  general-lemma-refl {K} {R} f =
-    transp (λ j → PathP (λ i → (uaIdEquiv {A = K} (~ j) i → A) → R) f f) i0
-      λ j → f
-  lemma-refl : ∀ {m}
-    → PathP (λ i → (ua (extract-fin {n = suc m} (fzero)) i → A) → B)
-       fold
-       fold
-  lemma-refl {m} = general-lemma-refl {K = Fin (suc m)} {R = B} fold
+  Lemma-expanded : ∀ {m n} (e : Fin m ≃ Fin n) → Set
+  Lemma-expanded {m} {n} e = (λ vs → fold {m} (vs ∘ fst e)) ≡ fold {n}
 
-  another-general-lemma-for-swap-4 :
-    ∀ (K : Set)
-    → (a : (K → A) → B)
-    → (b : (K → A) → B)
-    → (∀ vs → a vs ≡ b vs)
-    → PathP (λ i → ((ua (idEquiv K)) i → A) → B)
-      a b
-  another-general-lemma-for-swap-4 K a b prf =
-    transport (λ i →
-      PathP (λ j → (uaIdEquiv {A = K} (~ i) j → A) → B) a b) (λ i x → prf x i)
+  Lemma-definitions-equal : ∀ {m n} (e : Fin m ≃ Fin n) → Lemma e ≡ Lemma-expanded e
+  Lemma-definitions-equal {m} {n} e i = PathP (λ j → Type-square i j) (endpoint-0 i) (fold) where
 
-  another-general-lemma-for-swap :
-    ∀ (K₁ K₂ : Set)
-    → (a : (K₁ → A) → B)
-    → (b : (K₂ → A) → B)
-    → (e : K₁ ≃ K₂)
-    → (∀ vs → a vs ≡ b (vs ∘ λ (x : K₂) → fst (fst (equiv-proof (snd e) x))))
-    → PathP (λ i → ((ua e) i → A) → B)
-      a b
-  another-general-lemma-for-swap K₁ K₂ a b e prf =
-    EquivJ (λ K₂ K₁ (e : K₁ ≃ K₂) →
-    ∀ (a : (K₁ → A) → B)
-    → (b : (K₂ → A) → B)
-    → (∀ vs → a vs ≡ b (vs ∘ λ (x : K₂) → fst (fst (equiv-proof (snd e) x))))
-    → PathP (λ i → ((ua e) i → A) → B) a b) (λ K → another-general-lemma-for-swap-4 K) K₂ K₁ e a b prf
+    Type-square : I → I → Set
+    Type-square i j = Fold (ua e (i ∨ j))
 
-  noncubical-lemma-cong-suc-better-fit : ∀ {m n}
-    → (e : Fin m ≃ Fin n)
-    → (f1 : (Fin m → A) → B)
-    → (f2 : (Fin n → A) → B)
-    → (∀ vs → f1 vs ≡ f2 (vs ∘ (fst ∘ fst ∘ equiv-proof (snd e))))
-    → (∀ (vs : Fin (suc m) → A) →
-    vs fzero ∷* f1 (vs ∘ fsuc)
-    ≡ vs fzero ∷* f2 (vs ∘ (λ x → fst (fst (equiv-proof (snd (cong-suc e)) x))) ∘ fsuc))
-  noncubical-lemma-cong-suc-better-fit e f1 f2 prf vs i = vs fzero ∷* (prf (vs ∘ fsuc) i)
+    endpoint-0 : (i : I) → Type-square i i0
+    endpoint-0 i vs = fold {m} (vs ∘ transport-key) where
+      transport-key : Fin m → Glue (Fin n) λ { (i = i0) → Fin m , e; (i = i1) → Fin n , idEquiv (Fin n) }
+      transport-key a = glue (λ { (i = i0) → a; (i = i1) → fst e a }) (fst e a)
+
+  mk-Lemma : ∀ {m n} (e : Fin m ≃ Fin n) → Lemma-expanded e → Lemma e
+  mk-Lemma e prf = transport (λ i → Lemma-definitions-equal e (~ i)) prf
+
+  use-Lemma : ∀ {m n} (e : Fin m ≃ Fin n) → Lemma e → Lemma-expanded e
+  use-Lemma e prf = transport (λ i → Lemma-definitions-equal e (i)) prf
+
+  id-lemma : ∀ {m} → Lemma (idEquiv (Fin m))
+  id-lemma = mk-Lemma _ refl
 
   cong-suc-lemma :
     ∀ {m n} → (e : Fin m ≃ Fin n)
     → Lemma e
-    → Lemma (cong-suc-simple e)
+    → Lemma (cong-suc e)
   cong-suc-lemma {m} {n} e p =
-     another-general-lemma-for-swap (Fin (suc m)) (Fin (suc n))
-      (λ v → v fzero ∷* fold (λ k → v (fsuc k)))
-      (λ v → v fzero ∷* fold (λ k → v (fsuc k)))
+     mk-Lemma
       (cong-suc e)
-      λ vs → noncubical-lemma-cong-suc-better-fit e fold fold thm vs
-    where
-      thm : (vs₁ : Fin m → A) → fold vs₁ ≡ fold ((λ {a} → vs₁) ∘ (λ x → fst (fst (equiv-proof (snd e) x))))
-      thm vs₁ i = pp (outS vs) where
-        pp : (ua e i → A) → B
-        pp = p i
-
-        pp' : ((Glue {lzero} {lzero} (Fin n) (λ {
-          (i = i0) → Fin m , e;
-          (i = i1) → Fin n , idEquiv (Fin n)
-          })) → A) → B
-        pp' = pp
-
-        vs : Sub (ua e i → A) _ (λ { (i = i0) → vs₁; (i = i1) → ((λ {a} → vs₁) ∘ (λ x → fst (fst (equiv-proof (snd e) x)))) })
-        vs = inS body where
-         body : ua e i → A
-         body k = vs₁ (outS kk2) where
-
-           kk2 : Sub (Fin m) _ (λ { (i = i0) → k; (i = i1) → ((fst (fst (equiv-proof (snd e) k)))) })
-           kk2 = inS body2 where
-            body2 : Fin m
-            body2 =
-              hcomp (λ j → λ {
-                (i = i0) → k;
-                (i = i1) → prf 1=1 (~ j)
-             }) (transp (λ j → ua e (i ∧ ~ j)) (~ i) k) where
-             prf : PartialP {lzero} (i) λ { (i = i1) → ((fst (fst (equiv-proof (snd e) k)))) ≡ (transp (λ j → ua e (~ j)) i0 k) }
-             prf (i = i1) = (λ j → fst (fst (equiv-proof (snd e) (transp (λ j → Fin n) (~ j) k))))
-
-
-        pp-ends : Sub ((ua e i → A) → B) _ (λ { (i = i0) → fold; (i = i1) → fold })
-        pp-ends = inS pp
-       
-
-  noncubical-lemma-swap : ∀ {m} (vs : Fin (suc (suc m)) → A) → fold vs ≡ fold (vs ∘ finSwapFun)
-  noncubical-lemma-swap vs = comm* (vs fzero) (vs (fsuc fzero)) (fold (λ i → vs (fsuc (fsuc i))))
+      (λ i vs → vs fzero ∷* (use-Lemma e p i (vs ∘ fsuc)))
 
   lemma-swap : ∀ {m} → Lemma (finSwap {m})
   lemma-swap {m} =
-   another-general-lemma-for-swap (Fin (suc (suc m))) (Fin (suc (suc m)))
-    fold fold
+   mk-Lemma
     (finSwap {m})
-    noncubical-lemma-swap
+    (λ i vs → comm* (vs (fsuc fzero)) (vs fzero) (fold (λ i → vs (fsuc (fsuc i)))) i)
 
   import Cubical.Data.EquivGroupoid
 
-  lemma-compose :
+  lemma-compose-with-proof :
     ∀ {m n l : ℕ}
     → (e₁ : Fin m ≃ Fin n) (e₂ : Fin n ≃ Fin l)
     → (e : Fin m ≃ Fin l)
@@ -506,19 +440,26 @@ module FMSetRec {B : Set}
     → Lemma e₁
     → Lemma e₂
     → Lemma e
-  lemma-compose e₁ e₂ e e-proof e₁-lemma e₂-lemma =
+  lemma-compose-with-proof e₁ e₂ e e-proof e₁-lemma e₂-lemma =
     Cubical.Data.EquivGroupoid.lemma-compose-general (λ S → (S → A) → B) e₁ e₂ e e-proof fold fold fold e₁-lemma e₂-lemma
+
+  lemma-compose :
+    ∀ {m n l : ℕ}
+    → (e₁ : Fin m ≃ Fin n) (e₂ : Fin n ≃ Fin l)
+    → Lemma e₁
+    → Lemma e₂
+    → Lemma (compEquiv e₁ e₂)
+  lemma-compose e₁ e₂ e₁-lemma e₂-lemma =
+    lemma-compose-with-proof e₁ e₂ _ (λ _ → compEquiv e₁ e₂) e₁-lemma e₂-lemma
 
   lemma-extract-fin : ∀ {m} (k : Fin m) → Lemma (extract-fin k)
   lemma-extract-fin {m = zero} x = ⊥-elim (x)
-  lemma-extract-fin {m = suc m} (fzero) = lemma-refl
+  lemma-extract-fin {m = suc m} (fzero) = id-lemma
   lemma-extract-fin {m = suc zero} (fsuc k) = ⊥-elim ((k)) 
   lemma-extract-fin {m = suc (suc m)} (fsuc x) =
     lemma-compose
       finSwap
       (cong-suc (extract-fin (x)))
-      (extract-fin (fsuc x))
-      (λ i → extract-fin (fsuc x))
       lemma-swap
       (cong-suc-lemma ((extract-fin (x))) rec) where
      rec = lemma-extract-fin {m = suc m} (x)
@@ -530,9 +471,9 @@ module FMSetRec {B : Set}
      hcomp {φ = (i ∨ ~ i)} (λ j → λ {
        (i = i0) → fold values;
        (i = i1) → fold values }) []*
-  lemma {zero} {suc _} e = ⊥-elim ( (fst (fst (equiv-proof (snd e) fzero))))
-  lemma {suc _} {zero} e = ⊥-elim ( ((fst e) fzero))
-  lemma {suc m'} {suc n'} e = lemma-compose e₁ e₂ e e-proof e₁-lemma e₂-lemma
+  lemma {zero} {suc _} e = ⊥-elim ((fst (fst (equiv-proof (snd e) fzero))))
+  lemma {suc _} {zero} e = ⊥-elim ((fst e fzero))
+  lemma {suc m'} {suc n'} e = lemma-compose-with-proof e₁ e₂ e e-proof e₁-lemma e₂-lemma
       
    where
     e₁' = fst (decompose-equiv' e)
