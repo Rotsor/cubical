@@ -27,7 +27,7 @@ Container = Σ Set (λ S → S → Set)
 [ S , P ] A = Σ S (λ s → ∀ (p : P s) → A)
 
 open import Cubical.Data.Nat
-open import Cubical.Data.Fin
+open import Cubical.Data.CanonicalFin
 
 data Snat : Set where
   snat : ℕ → Snat
@@ -43,18 +43,18 @@ open import Cubical.Data.Nat.Order
 
 bag1-contents : Fin 2 → ℕ
 bag1-contents = λ {
-  (zero , snd₁) → 5;
-  (_ , snd₁) → 3 }
+  fzero → 5;
+  (fsuc _) → 3 }
 
 bag2-contents : Fin 2 → ℕ
 bag2-contents = λ {
-  (zero , snd₁) → 3;
-  (_ , snd₁) → 5 }
+  fzero → 3;
+  (fsuc _) → 5 }
 
 bag3-contents : Fin 2 → ℕ
 bag3-contents = λ {
-  (zero , snd₁) → 0;
-  (_ , snd₁) → 0 }
+  fzero → 0;
+  (fsuc _) → 0 }
 
 bag1 : Bag ℕ
 bag1 = snat 2 , bag1-contents
@@ -66,13 +66,12 @@ bag3 : Bag ℕ
 bag3 = snat 2 , bag3-contents
 
 swapFun : Fin 2 → Fin 2
-swapFun (zero , snd₁) = 1 , 0 , refl
-swapFun (suc fst₁ , snd₁) = 0 , 1 , refl
+swapFun fzero = fsuc fzero
+swapFun (fsuc fzero) = fzero
 
 swap-inverse : section swapFun swapFun
-swap-inverse (zero , snd₁) = toℕ-injective (λ _ → 0)
-swap-inverse (suc zero , snd₁) = toℕ-injective ((λ _ → 1))
-swap-inverse (suc (suc fst₁) , bad) = ⊥-elim (¬-<-zero (pred-≤-pred (pred-≤-pred bad)))
+swap-inverse fzero _ = fzero
+swap-inverse (fsuc fzero) _ = fsuc fzero
 
 swap : Fin 2 ≃ Fin 2
 swap = swapFun ,
@@ -80,8 +79,8 @@ swap = swapFun ,
     (iso swapFun swapFun swap-inverse swap-inverse)
 
 contents-related : ∀ x → bag2-contents (swapFun x) ≡ bag1-contents x
-contents-related (zero , snd₁) = λ _ → 5
-contents-related (suc fst₁ , snd₁) = λ _ → 3
+contents-related fzero = λ _ → 5
+contents-related (fsuc fzero) = λ _ → 3
 
 functions-equal-up-to-domain-equivalence :
  ∀ {A₁ A₂ : Set} {B : Set}
@@ -100,7 +99,7 @@ functions-equal-up-to-domain-equivalence {B = B} f₁ f₂ e pointwise-equal i x
     (i = i0) → pointwise-equal x (~ j);
     (i = i1) → f₂ x
     }) (f₂ (outS (unglueua e i x)))
-    
+
 contents-proof :
   PathP
     (λ i → ua swap i → ℕ)
@@ -112,10 +111,10 @@ contents-proof =
     swap (λ x i → contents-related x (~ i))
 
 -- Bags look very different:
-weird1 : snd bag2 (zero , 1 , λ i → 2) ≡ 3
+weird1 : snd bag2 fzero ≡ 3
 weird1 = refl
 
-weird2 : snd bag1 (zero , 1 , λ i → 2) ≡ 5
+weird2 : snd bag1 fzero ≡ 5
 weird2 = refl
 
 -- And yet:
@@ -123,20 +122,19 @@ bags-equal : bag1 ≡ bag2
 bags-equal i =
   snat-eq 2 2 swap i , contents-proof i
 
-
 private
   variable
     A : Type₀
 
 finSwapFun : ∀ {n} → Fin (suc (suc n)) → Fin (suc (suc n))
-finSwapFun {n} (zero , _) = suc zero , suc-≤-suc (suc-≤-suc zero-≤)
-finSwapFun (suc zero , _) = zero , suc-≤-suc zero-≤
-finSwapFun (suc (suc n) , ≤) = suc (suc n) , ≤
+finSwapFun {n} fzero = fsuc fzero
+finSwapFun (fsuc fzero) = fzero
+finSwapFun (fsuc (fsuc n)) = fsuc (fsuc n)
 
 finSwap-inverse : ∀ {n} x → finSwapFun {n} (finSwapFun x) ≡ x
-finSwap-inverse (zero , x) = toℕ-injective (λ _ → 0)
-finSwap-inverse (suc zero , x) = toℕ-injective (λ _ → 1)
-finSwap-inverse (suc (suc k) , x) = refl
+finSwap-inverse fzero = refl
+finSwap-inverse (fsuc fzero) = refl
+finSwap-inverse (fsuc (fsuc k)) = refl
 
 finSwap : ∀ {n} → Fin (suc (suc n)) ≃ Fin (suc (suc n))
 finSwap = finSwapFun ,
@@ -145,37 +143,14 @@ finSwap = finSwapFun ,
 
 inject : ∀ {n} → (pos : ℕ) → Fin n → Fin (suc n)
 inject zero x = fsuc x
-inject (suc pos) (zero , rem , prf) = zero , suc rem , λ i → suc (prf i)
-inject {n = suc n} (suc pos) (suc x , ≤) =
-  fsuc (inject pos (x , pred-≤-pred ≤))
+inject {n = suc n} (suc pos) fzero = fzero
+inject {n = suc n} (suc pos) (fsuc x) = fsuc (inject pos x)
 inject {n = zero} (suc pos) x = fsuc x
 
 open import Cubical.Foundations.Function
 
 fin-suc-becomes-unit : ∀ {n} → Fin (suc n) ≃ Unit ⊎ Fin n
-fin-suc-becomes-unit {n} =
-  to , 
-  isoToIsEquiv
-    (iso to from t1 t2) where
-
-   to : Fin (suc n) → Unit ⊎ Fin n
-   to x =
-      case fsplit x return (λ _ → Unit ⊎ Fin n) of λ
-        { (inl p) → inl tt
-        ; (inr (fk , p)) → inr fk
-        }
-        
-   from : Unit ⊎ Fin n → Fin (suc n)
-   from (inl tt) = fzero
-   from (inr x) = fsuc x
-
-   t1 : ∀ b → (to (from b)) ≡ b
-   t1 (inl tt) = λ _ → inl tt
-   t1 (inr f-in) = λ i →
-     (inr (toℕ-injective {_} {(fst f-in , pred-≤-pred (suc-≤-suc (snd f-in)))} {f-in} (λ i → fst f-in) i))
-   t2 : ∀ b → (from (to b)) ≡ b
-   t2 (zero , _) = toℕ-injective λ _ → 0
-   t2 (suc x , _) = toℕ-injective (λ _ → (suc x))
+fin-suc-becomes-unit {n} = idEquiv (Fin (suc n))
 
 cong-suc-u : ∀ {m n} → Fin m ≃ Fin n → Fin (suc m) ≃ Fin (suc n)
 cong-suc-u {m} {n} e =
@@ -185,58 +160,22 @@ cong-suc-u {m} {n} e =
   e2 = pathToEquiv (λ i → Unit ⊎ (ua e i))
 
 cong-suc-fun : ∀ {m n} → (Fin m → Fin n) → Fin (suc m) → Fin (suc n)
-cong-suc-fun fun (zero , _) = fzero
-cong-suc-fun fun (suc f , fits) = fsuc (fun (f , pred-≤-pred fits))
+cong-suc-fun fun fzero = fzero
+cong-suc-fun fun (fsuc f) = fsuc (fun f)
 
 cong-suc-iso : ∀ {m n} → (Iso (Fin m) (Fin n)) → Iso (Fin (suc m)) (Fin (suc n))
 cong-suc-iso {m} {n} (iso to from sect0 retr0) =
   iso (cong-suc-fun to) (cong-suc-fun from) sect retr where
     sect : section (cong-suc-fun to) (cong-suc-fun from)
-    sect (zero , snd₁) = toℕ-injective (λ _ → 0)
-    sect (suc x , ≤) = toℕ-injective final where
-    
-      pred : Fin n
-      pred = (x , pred-≤-pred ≤)
-
-      rec : to (from pred) ≡ pred
-      rec = sect0 pred
-
-      mangle-proof : ∀ {n} → Fin (n) → Fin (n)
-      mangle-proof x = (fst x , pred-≤-pred (snd (fsuc x)))
-
-      mangle-proof-id : ∀ {n} x → mangle-proof {n} x ≡ x
-      mangle-proof-id x = toℕ-injective (λ _ → fst x)
-
-      final : suc (fst (to (mangle-proof (from pred)))) ≡ suc x
-      final =
-        λ i → suc (fst ((
-           (λ i →  to ((mangle-proof-id (from pred) i)))
-           ∙ rec) i))
+    sect fzero = (λ _ → fzero)
+    sect (fsuc x) i = fsuc (sect0 x i)
 
     retr : retract (cong-suc-fun to) (cong-suc-fun from)
-    retr (zero , snd₁) = toℕ-injective (λ _ → 0)
-    retr (suc x , ≤) = toℕ-injective final where
-    
-      pred : Fin m
-      pred = (x , pred-≤-pred ≤)
-
-      rec : from (to pred) ≡ pred
-      rec = retr0 pred
-
-      mangle-proof : ∀ {n} → Fin (n) → Fin (n)
-      mangle-proof x = (fst x , pred-≤-pred (snd (fsuc x)))
-
-      mangle-proof-id : ∀ {n} x → mangle-proof {n} x ≡ x
-      mangle-proof-id x = toℕ-injective (λ _ → fst x)
-
-      final : suc (fst (from (mangle-proof (to pred)))) ≡ suc x
-      final =
-        λ i → suc (fst ((
-           (λ i →  from ((mangle-proof-id (to pred) i)))
-           ∙ rec) i))
+    retr fzero = (λ _ → fzero)
+    retr (fsuc x) i = fsuc (retr0 x i)
 
 cong-suc-simple : ∀ {m n} → Fin m ≃ Fin n → Fin (suc m) ≃ Fin (suc n)
-cong-suc-simple {m} {n} e = isoToEquiv (cong-suc-iso (equivToIso e)) where
+cong-suc-simple {m} {n} e = isoToEquiv (cong-suc-iso (equivToIso e))
 
 cong-suc = cong-suc-simple
 
@@ -256,12 +195,10 @@ inv-e e = invEquiv e
 -- 3 <-> 3
 -- 4 <-> 4
 extract-fin : ∀ {n} → Fin n → Fin n ≃ Fin n
-extract-fin {n} (zero , snd₁) = idEquiv (Fin (n))
-extract-fin {n = zero} x = ⊥-elim (¬Fin0 x)
-extract-fin {n = suc zero} (suc x , ≤) = ⊥-elim (¬Fin0 (x , pred-≤-pred ≤))
-extract-fin {n = suc (suc n)} (suc x , ≤) =
-  let rec-iso = extract-fin (x , pred-≤-pred ≤) in
-  finSwap ∘e cong-suc rec-iso 
+extract-fin {n = suc n} fzero = idEquiv _
+extract-fin {n = zero} x = ⊥-elim x
+extract-fin {n = suc zero} (fsuc x) = ⊥-elim x
+extract-fin {n = suc (suc n)} (fsuc x) = finSwap ∘e cong-suc (extract-fin x)
 
 equiv-unique-preimage : ∀ {A B : Set} (e : A ≃ B) → ∀ {x y w} → fst e x ≡ w → fst e y ≡ w
   → x ≡ y
@@ -276,6 +213,12 @@ equal-function-means-equal-equiv :
   → e₁ ≡ e₂
 equal-function-means-equal-equiv e₁ e₂ prf = equivEq e₁ e₂ (λ i x → prf x i)
 
+fsnotz : ∀ {n} {a : Fin n} → fsuc a ≡ fzero → ⊥
+fsnotz {n} e = transport (λ i → fam (e i)) tt where
+  fam : Fin (suc n) → Set
+  fam (inl x) = ⊥
+  fam (fsuc x) = Unit
+
 decompose-equiv-helper : ∀ {m n} → (e : Fin (suc m) ≃ Fin (suc n))
   → fst e fzero ≡ fzero
   → 
@@ -286,14 +229,14 @@ decompose-equiv-helper {m} {n} e z-z = equiv , equal-function-means-equal-equiv 
   z-z-inv = cong fst (snd (equiv-proof (snd e) fzero) (fzero , z-z))
   
   refute-sz : ∀ {x} → fst e (fsuc x) ≡ fzero → ⊥
-  refute-sz sz = ⊥-elim (snotz (cong toℕ (equiv-unique-preimage e sz z-z)))
+  refute-sz sz = ⊥-elim (fsnotz ((equiv-unique-preimage e sz z-z)))
 
   refute-zs : ∀ {x} → fst (invEquiv e) (fsuc x) ≡ fzero → ⊥
-  refute-zs {x} zs = ⊥-elim (snotz (cong toℕ (equiv-unique-preimage (invEquiv e) zs z-z-inv)))
+  refute-zs {x} zs = ⊥-elim (fsnotz ((equiv-unique-preimage (invEquiv e) zs z-z-inv)))
 
   pred : ∀ {n} → (k : Fin (suc n)) → ¬ (k ≡ fzero) → Fin n
-  pred (zero , k) nz = ⊥-elim (nz (toℕ-injective λ _ → 0))
-  pred (suc x , ≤) _ = (x , pred-≤-pred ≤)
+  pred fzero nz = ⊥-elim (nz (λ _ → fzero))
+  pred (fsuc x) _ = x
 
   e-to = fst e
   e-from = fst (invEquiv e)
@@ -304,15 +247,12 @@ decompose-equiv-helper {m} {n} e z-z = equiv , equal-function-means-equal-equiv 
   from : Fin n → Fin m
   from x = pred (e-from (fsuc x)) refute-zs
 
-  pred-suc-elim : ∀ {n} (x : Fin n) proof → pred (fsuc x) proof ≡ x
-  pred-suc-elim {n} x proof = toℕ-injective λ _ → (fst x)
-
   pred-suc-elim' : ∀ {n} (x : Fin (suc n)) (y : Fin n) → x ≡ fsuc y → ∀ proof → pred x proof ≡ y
-  pred-suc-elim' {n} x y e = transp (λ i → ∀ proof → pred (e (~ i)) proof ≡ y) i0 (pred-suc-elim _) 
+  pred-suc-elim' {n} x y e = transp (λ i → ∀ proof → pred (e (~ i)) proof ≡ y) i0 (λ _ _ → y) 
 
   suc-pred-elim : ∀ {n} (x : Fin (suc n)) {proof} → fsuc (pred x proof) ≡ x
-  suc-pred-elim (zero , _) {proof} = ⊥-elim (proof (toℕ-injective (λ _ → 0)))
-  suc-pred-elim (suc x , snd₁) = toℕ-injective (λ i → suc x)
+  suc-pred-elim fzero {proof} = ⊥-elim (proof ((λ _ → fzero)))
+  suc-pred-elim (fsuc x) = (λ i → fsuc x)
 
   e-erase-1 : e-from ∘ e-to ≡ (λ x → x)
   e-erase-1 i x = fst (snd (equiv-proof (snd e) (e-to x)) (x , (λ _ → e-to x)) i)
@@ -359,10 +299,10 @@ decompose-equiv-helper {m} {n} e z-z = equiv , equal-function-means-equal-equiv 
   equiv = isoToEquiv (iso to from to-from from-to)
 
   equal : ∀ x → fst e x ≡ cong-suc-fun to x
-  equal (zero , _) = (cong (fst e) (toℕ-injective (λ _ → 0))) ∙ z-z
-  equal (suc x , ≤) =
-    cong (fst e) (λ i → suc-pred-elim (suc x , ≤) {proof = λ e → ⊥-elim (snotz (cong toℕ e))} (~ i))
-    ∙ λ i → suc-pred-elim (e-to (fsuc (x , pred-≤-pred ≤))) {proof = refute-sz} (~ i)
+  equal (fzero) = (cong (fst e) ((λ _ → fzero))) ∙ z-z
+  equal (fsuc x) =
+    cong (fst e) (λ i → suc-pred-elim (fsuc x) {proof = λ e → ⊥-elim (fsnotz (e))} (~ i))
+    ∙ λ i → suc-pred-elim (e-to (fsuc x)) {proof = refute-sz} (~ i)
 
 equivMaps : ∀ {A B} (e : A ≃ B) (x : A) (y : B) → Set
 equivMaps e x y = PathP (λ i → ua e i) x y
@@ -389,28 +329,20 @@ equivMaps'-inv :
 equivMaps'-inv e x y prf = cong fst (snd (equiv-proof (snd e) y) (x , prf))
 
 cong-suc-equivMaps : ∀ {m n} (e : Fin m ≃ Fin n) x y → equivMaps' e x y → equivMaps' (cong-suc e) (fsuc x) (fsuc y)
-cong-suc-equivMaps e x y prf = final where
-  prf' : fst e (fst x , pred-≤-pred (suc-≤-suc (snd x))) ≡ y
-  prf' = transp (λ i →  fst e (toℕ-injective {_} {x} {(fst x , pred-≤-pred (suc-≤-suc (snd x)))} (λ _ → fst x) i) ≡ y) i0 prf
-
-  final : cong-suc-fun (fst e) (fsuc x) ≡ fsuc y
-  final = cong fsuc prf'
+cong-suc-equivMaps e x y prf = cong fsuc prf
 
 extract-fin-spec-simple : ∀ {m} (k : Fin (suc m)) → equivMaps' (extract-fin k) fzero k
-extract-fin-spec-simple (zero , snd₁) = (toℕ-injective (λ _ → 0))
-extract-fin-spec-simple {zero} (suc fst₁ , snd₁) = (⊥-elim (¬Fin0 (fst₁ , pred-≤-pred snd₁)))
-extract-fin-spec-simple {suc m} (suc x , ≤) =  equivMaps'-comp finSwap (cong-suc extract-rec) fzero (fsuc fzero) (suc x , ≤) swap-one rec-congsuc  where
+extract-fin-spec-simple fzero = ((λ _ → fzero))
+extract-fin-spec-simple {zero} (fsuc x) = (⊥-elim ((x)))
+extract-fin-spec-simple {suc m} (fsuc x) =  equivMaps'-comp finSwap (cong-suc extract-rec) fzero (fsuc fzero) (fsuc x) swap-one rec-congsuc  where
 
-  extract-rec = (extract-fin (x , pred-≤-pred ≤))
+  extract-rec = (extract-fin (x))
   
-  rec : equivMaps' extract-rec fzero (x , pred-≤-pred ≤)
-  rec = extract-fin-spec-simple (x , pred-≤-pred ≤)
+  rec : equivMaps' extract-rec fzero (x)
+  rec = extract-fin-spec-simple (x)
 
-  rec-congsuc : equivMaps' (cong-suc (extract-rec)) (fsuc fzero) (suc x , ≤)
-  rec-congsuc = transp (λ i → equivMaps' (cong-suc extract-rec) (fsuc fzero) (aux i)) i0 p where
-    aux : fsuc ((x , pred-≤-pred ≤)) ≡ (suc x , ≤)
-    aux = toℕ-injective (λ i → suc x)
-    p = cong-suc-equivMaps (extract-rec) fzero (x , pred-≤-pred ≤) rec
+  rec-congsuc : equivMaps' (cong-suc (extract-rec)) (fsuc fzero) (fsuc x)
+  rec-congsuc = cong-suc-equivMaps (extract-rec) fzero (x) rec where
 
   swap-one : ∀ {m} → equivMaps' (finSwap {m}) fzero (fsuc fzero) 
   swap-one = λ i → fsuc fzero
@@ -479,28 +411,16 @@ module FMSetRec {B : Set}
        fold
   lemma-refl {m} = general-lemma-refl {K = Fin (suc m)} {R = B} fold
 
-  another-general-lemma-for-swap-5 :
-    ∀ (K : Set)
-    → (a : (K → A) → B)
-    → (b : (K → A) → B)
-    → (∀ vs → a vs ≡ b (vs ∘ λ (x : K) → fst (fst (equiv-proof (snd (idEquiv K)) x))))
-    → PathP (λ i → (K → A) → B)
-      a b
-  another-general-lemma-for-swap-5 K a b prf i vs = prf (λ q → vs q) i
-
   another-general-lemma-for-swap-4 :
     ∀ (K : Set)
     → (a : (K → A) → B)
     → (b : (K → A) → B)
-    → (∀ vs → a vs ≡ b (vs ∘ λ (x : K) → fst (fst (equiv-proof (snd (idEquiv K)) x))))
+    → (∀ vs → a vs ≡ b vs)
     → PathP (λ i → ((ua (idEquiv K)) i → A) → B)
       a b
   another-general-lemma-for-swap-4 K a b prf =
     transport (λ i →
-      PathP (λ j → (p i j → A) → B) a b) (another-general-lemma-for-swap-5 K a b prf)
-     where
-      p : (λ _ → K) ≡ (ua (idEquiv K))
-      p i = uaIdEquiv (~ i)
+      PathP (λ j → (uaIdEquiv {A = K} (~ i) j → A) → B) a b) (λ i x → prf x i)
 
   another-general-lemma-for-swap :
     ∀ (K₁ K₂ : Set)
@@ -529,7 +449,7 @@ module FMSetRec {B : Set}
      vs' = (λ (k : Fin _) → vs (fsuc k))
 
      theorem : ∀ k → (vs ∘ cong-suc-fun (fst e) ∘ fsuc) k ≡ vs' (fst e k)
-     theorem k = cong vs (cong (fsuc ∘ fst e) (toℕ-injective (λ _ → fst k)))
+     theorem k = cong vs (cong (fsuc ∘ fst e) ((λ _ → k)))
 
      another-theorem :
         vs fzero ∷* fold (vs' ∘ (fst e))
@@ -545,36 +465,6 @@ module FMSetRec {B : Set}
      pp : vs fzero ∷* fold vs' ≡ vs fzero ∷* fold (vs' ∘ fst e)
      pp = λ i → vs fzero ∷* (prf vs' i)
 
-  noncubical-lemma-cong-suc2 : ∀ {m n}
-    → (e : Fin m ≃ Fin n)
-    → (f1 : (Fin m → A) → B)
-    → (f2 : (Fin n → A) → B)
-    → (∀ vs → f1 vs ≡ f2 (vs ∘ (fst ∘ fst ∘ equiv-proof (snd e))))
-    → (∀ (vs : Fin (suc m) → A) →
-      vs fzero ∷* f1 (vs ∘ fsuc)
-      ≡ vs fzero ∷* f2 ((vs ∘ cong-suc-fun ((fst ∘ fst ∘ equiv-proof (snd e)))) ∘ fsuc))
-  noncubical-lemma-cong-suc2 e f1 f2 prf vs =
-       λ i → hcomp (λ j → λ { (i = i0) → side0 j; (i = i1) → side1 j }) (pp i)  where
-
-     vs' = (λ (k : Fin _) → vs (fsuc k))
-
-     theorem : ∀ k → (vs ∘ cong-suc-fun ((fst ∘ fst ∘ equiv-proof (snd e))) ∘ fsuc) k ≡ vs' ((fst ∘ fst ∘ equiv-proof (snd e)) k)
-     theorem k = cong vs (cong (fsuc ∘ (fst ∘ fst ∘ equiv-proof (snd e))) (toℕ-injective (λ _ → fst k)))
-
-     another-theorem :
-        vs fzero ∷* f2 (vs' ∘ ((fst ∘ fst ∘ equiv-proof (snd e))))
-        ≡ vs fzero ∷* f2 (vs ∘ cong-suc-fun ((fst ∘ fst ∘ equiv-proof (snd e))) ∘ fsuc)
-     another-theorem i = vs fzero ∷* f2 (λ k → theorem k (~ i))
-
-     side0 : vs fzero ∷* f1 vs' ≡ vs fzero ∷* f1 (vs ∘ fsuc)
-     side0 i = vs fzero ∷* f1 vs'
-
-     side1 : vs fzero ∷* f2 (vs' ∘ (fst ∘ fst ∘ equiv-proof (snd e))) ≡ vs fzero ∷* f2 (vs ∘ cong-suc-fun ((fst ∘ fst ∘ equiv-proof (snd e))) ∘ fsuc)
-     side1 = another-theorem
-
-     pp : vs fzero ∷* f1 vs' ≡ vs fzero ∷* f2 (vs' ∘ (fst ∘ fst ∘ equiv-proof (snd e)))
-     pp = λ i → vs fzero ∷* (prf vs' i)
-
   noncubical-lemma-cong-suc-better-fit : ∀ {m n}
     → (e : Fin m ≃ Fin n)
     → (f1 : (Fin m → A) → B)
@@ -583,7 +473,7 @@ module FMSetRec {B : Set}
     → (∀ (vs : Fin (suc m) → A) →
     vs fzero ∷* f1 (vs ∘ fsuc)
     ≡ vs fzero ∷* f2 (vs ∘ (λ x → fst (fst (equiv-proof (snd (cong-suc e)) x))) ∘ fsuc))
-  noncubical-lemma-cong-suc-better-fit = noncubical-lemma-cong-suc2 
+  noncubical-lemma-cong-suc-better-fit e f1 f2 prf vs i = vs fzero ∷* (prf (vs ∘ fsuc) i)
 
   cong-suc-lemma :
     ∀ {m n} → (e : Fin m ≃ Fin n)
@@ -658,21 +548,21 @@ module FMSetRec {B : Set}
           })
          → A) → B)
       fold fold
-  lemma-extract-fin-reduced {m = zero} x = ⊥-elim (¬Fin0 x)
-  lemma-extract-fin-reduced {m = suc m} (zero , snd₁) = lemma-refl
-  lemma-extract-fin-reduced {m = suc zero} (suc k , ≤) = ⊥-elim (¬Fin0 (k , pred-≤-pred ≤)) 
-  lemma-extract-fin-reduced {m = suc (suc m)} (suc x , ≤) =
+  lemma-extract-fin-reduced {m = zero} x = ⊥-elim (x)
+  lemma-extract-fin-reduced {m = suc m} (fzero) = lemma-refl
+  lemma-extract-fin-reduced {m = suc zero} (fsuc k) = ⊥-elim ((k)) 
+  lemma-extract-fin-reduced {m = suc (suc m)} (fsuc x) =
     Cubical.Data.EquivGroupoid.lemma-compose-general
       (λ K → (K → A) → B)
-      finSwap (cong-suc (extract-fin (x , pred-≤-pred ≤)))
-      (extract-fin (suc x , ≤))
-      (λ i → extract-fin (suc x , ≤))
+      finSwap (cong-suc (extract-fin (x)))
+      (extract-fin (fsuc x))
+      (λ i → extract-fin (fsuc x))
       fold
       fold
       fold
       lemma-swap
-      (cong-suc-lemma ((extract-fin (x , pred-≤-pred ≤))) fold fold rec) where
-     rec = lemma-extract-fin-reduced {m = suc m} (x , pred-≤-pred ≤)
+      (cong-suc-lemma ((extract-fin (x))) fold fold rec) where
+     rec = lemma-extract-fin-reduced {m = suc m} (x)
     
 
   lemma-extract-fin-unreduced : ∀ {m} (k : Fin m)
@@ -690,8 +580,8 @@ module FMSetRec {B : Set}
      hcomp {φ = (i ∨ ~ i)} (λ j → λ {
        (i = i0) → fold values;
        (i = i1) → fold values }) []*
-  lemma {zero} {suc _} e = ⊥-elim (¬Fin0 (fst (fst (equiv-proof (snd e) fzero))))
-  lemma {suc _} {zero} e = ⊥-elim (¬Fin0 ((fst e) fzero))
+  lemma {zero} {suc _} e = ⊥-elim ( (fst (fst (equiv-proof (snd e) fzero))))
+  lemma {suc _} {zero} e = ⊥-elim ( ((fst e) fzero))
   lemma {suc m'} {suc n'} e =
       Cubical.Data.EquivGroupoid.lemma-compose-general (λ S → (S → A) → B) (cong-suc e₁') e₂ e e-proof fold fold fold e₁-path e₂-path
    where
