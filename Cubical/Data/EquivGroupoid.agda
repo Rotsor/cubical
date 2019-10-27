@@ -50,6 +50,65 @@ transport-with-refl :
   → ua (idEquiv A) ≡ (λ _ → A)
 transport-with-refl {A} i = uaIdEquiv i
 
+{- transport-with-comp' : 
+  ∀ {A B C : Set} (P : Set → Set)
+  → (e1 : A ≃ B) (e2 : B ≃ C)
+  → ∀ x →
+   transport (λ i → P (ua (e2) i)) (transport (λ i → P (ua (e1) i)) x) ≡
+   transport (λ i → P (ua (compEquiv e1 e2) i)) x   
+transport-with-comp' {A} {B} {C} P e1 e2 x i = {! wut !} where
+
+  transp1 = (transport (λ i → P (ua (e1) i)))
+  transp2 = (transport (λ i → P (ua (e2) i)))
+  transp12 = (transport (λ i → P (ua (compEquiv e1 e2) i)))
+
+  ttt0 : (i j : I) → Set
+  ttt0 i j = P (Glue C λ {
+    (j = i1) → C , idEquiv _;
+    (i = i1) (j = i0) → A , (compEquiv e1 e2);
+    (i = i0) (j = i0) → B , e2
+    })
+
+  equiv-path0 : (i : I) → Sub ((ua e1 i) ≃ B) (i ∨ ~ i) (λ { (i = i1) → idEquiv _; (i = i0) → e1 })
+  equiv-path0 i = {! ua e1 i !}
+
+  equiv-path : (i : I) → Sub ((ua e1 i) ≃ C) (i ∨ ~ i) (λ { (i = i1) → e2; (i = i0) → (compEquiv e1 e2) })
+  equiv-path = {!!}
+
+  ttt2 : (i j : I) → Set
+  ttt2 i j = P (Glue C λ {
+    (j = i1) → C , idEquiv _;
+    (j = i0) → (ua e1 i) , outS (equiv-path i)
+    })
+
+  ttt1 : (i j : I) → Set
+  ttt1 i j = P (ua e1 (~ i ∧ j))
+
+  ttt : (i j : I) → Set
+  ttt i j = P (Glue C λ {
+      (j = i0) → A , (compEquiv e1 e2);
+      (j = i1) (i = i1) → C , idEquiv _;
+      (j = i1) (i = i0) → B , e2
+     } )
+
+  ttt-top : ∀ i → ttt i i1 ≡ P (ua e2 i)
+  ttt-top i = refl
+
+  qq : P (ua e2 i)
+  qq = comp (λ j → ttt i j) (i ∨ ~ i) (λ j → λ { (i = i0) → {! transp (λ k → P (ua e1 (k ∧ j))) (~ j) x !}; (i = i1) → {!!} }) x 
+
+  wat : ttt0 i i0
+  wat = {!!}
+
+  wut : P C
+  wut = transp (λ j → ttt0 i j) i0 wat
+
+  wut-sub : Sub (P C) _ (λ {
+     (i = i0) → transport (λ i → P (ua (e2) i)) (transport (λ i → P (ua (e1) i)) x);
+     (i = i1) → transport (λ i → P (ua (compEquiv e1 e2) i)) x
+     })
+  wut-sub = inS wut -}
+
 transport-with-comp : 
   ∀ {A B C : Set} (P : Set → Set)
   → (e1 : A ≃ B) (e2 : B ≃ C)
