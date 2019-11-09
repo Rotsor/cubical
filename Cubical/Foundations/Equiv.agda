@@ -90,6 +90,45 @@ module _ (w : A ≃ B) where
 equivToIso : ∀ {ℓ ℓ'} {A : Type ℓ} {B : Type ℓ'} → A ≃ B → Iso A B
 equivToIso {A = A} {B = B} e = iso (e .fst) (invEq e ) (retEq e) (secEq e)
 
+
+module _ {ℓ ℓ'} {A : Type ℓ} {B : Type ℓ'} (i : Iso A B) where
+  private
+    f = Iso.fun i
+    g = Iso.inv i
+    ret = Iso.rightInv i
+    sec = Iso.leftInv i
+    e = isoToEquiv i
+    _∙/_ = _∙_
+
+    _\∙/_ : ∀ {x y z : A} (p : x ≡ y) (q : y ≡ z) → x ≡ z
+    p \∙/ q = p ∙∙ refl ∙∙ q
+
+    _\∙_ : ∀ {x y z : A} (p : x ≡ y) (q : y ≡ z) → x ≡ z
+    _\∙_ p q = sym (sym q ∙ sym p)
+
+
+  A-loop : ∀ y → g y ≡ g y
+  A-loop y = sym (sec (g y)) ∙ cong g (ret y)
+
+  module _ (x : A) where
+    private
+      p1 = sym (sec (g (f x)))
+      p2 = cong g (ret (f x))
+      p3 = sec x
+
+    secEq-iso : secEq e x ≡ A-loop (f x) ∙ p3
+    secEq-iso =
+      secEq e x
+        ≡⟨ refl ⟩
+      ((p1 \∙ p2) \∙/ (refl ∙/ p3))
+        ≡⟨ midleft (p1 \∙ p2) (refl ∙/ p3) ⟩
+      ((p1 \∙ p2) ∙ (refl ∙/ p3))
+        ≡⟨  cong₂ _∙_ (sym (leftright p1 p2)) (sym (lUnit p3)) ⟩
+      ((p1 ∙ p2) ∙ p3)
+        ≡⟨ refl ⟩
+      A-loop (f x) ∙ p3
+     ∎
+
 invEquiv : A ≃ B → B ≃ A
 invEquiv f = isoToEquiv (iso (invEq f) (fst f) (secEq f) (retEq f))
 
