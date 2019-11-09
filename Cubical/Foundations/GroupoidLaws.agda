@@ -204,6 +204,13 @@ leftright p q i j =
                  ; (j = i1) → q (t ∨ i) })
         (rhombus-filler p q i j)
 
+midleft : {ℓ : Level} {A : Type ℓ} {x y z : A} (p : x ≡ y) (q : y ≡ z) →
+            (p ∙∙ refl ∙∙ q) ≡ (refl ∙∙ p ∙∙ q)
+midleft p q i j =
+  hcomp (λ t → λ { (j = i0) → p (~ t ∧ ~ i) 
+                 ; (j = i1) → q t })
+        (p (j ∨ ~ i))
+
 -- equating doubleCompPath and a succession of two compPath
 
 split-leftright : {ℓ : Level} {A : Type ℓ} {w x y z : A} (p : w ≡ x) (q : x ≡ y) (r : y ≡ z) →
