@@ -38,10 +38,8 @@ Factorial' zero (suc _) = ⊥
 Factorial' (suc _) zero = ⊥
 Factorial' (suc n) (suc m) = Factorial' n m × Fin (suc m)
 
-Suc : Set → Set
-Suc = _⊎_ Unit
-
 module _ {A : Set} where
+
 
   swap-fun : Suc (Suc A) → Suc (Suc A)
   swap-fun fzero = fsuc fzero
@@ -60,6 +58,51 @@ module _ {A : Set} where
 
   swap : Unit ⊎ (Unit ⊎ A) ≡ Unit ⊎ (Unit ⊎ A)
   swap = ua swapEquiv
+
+  swap-01 : PathP (λ i → swap i) fzero (fsuc fzero)
+  swap-01 i = glue (λ { (i = i0) → fzero; (i = i1) → fsuc fzero }) (fsuc fzero)
+
+  swap-10 : PathP (λ i → swap i) (fsuc fzero) fzero
+  swap-10 i = glue (λ { (i = i0) → fsuc fzero; (i = i1) → fzero }) fzero
+
+  swap-2+ : ∀ x → PathP (λ i → swap i) (fsuc (fsuc x)) (fsuc (fsuc x))
+  swap-2+ x i = glue (λ { (i = i0) → fsuc (fsuc x); (i = i1) → fsuc (fsuc x) }) (fsuc (fsuc x))
+
+  Elim-fin2+ : (Fin : Set) (f0 : Fin) (f1 : Fin) (f2+ : A → Fin) → Set₁
+  Elim-fin2+ Fin f0 f1 f2+ = ∀ (P : Fin → Set) → P f0 → P f1 → (∀ x → P (f2+ x)) → ∀ x → P x
+
+  Elim-fin2+-With-propositional-computation : (Fin : Set) (f0 : Fin) (f1 : Fin) (f2+ : A → Fin) → Set₁
+  Elim-fin2+-With-propositional-computation Fin f0 f1 f2+ =
+    Σ[ Elim ∈ Elim-fin2+ Fin f0 f1 f2+ ] (∀ P p0 p1 p2+
+      → (Elim P p0 p1 p2+ f0 ≡ p0)
+      × ((Elim P p0 p1 p2+ f1 ≡ p1)
+      × (∀ x → Elim P p0 p1 p2+ (f2+ x) ≡ (p2+ x))))
+
+  Elim-fin2+' : (i : I) → Set₁
+  Elim-fin2+' i = Elim-fin2+ (swap i) (swap-01 i) (swap-10 i) (λ x → swap-2+ x i)
+
+  elim-fin2-0 : Elim-fin2+' i0
+  elim-fin2-0 P f0 f1 f2+ = suc-match P f0 λ x → suc-match (λ x → P (fsuc x)) f1 f2+ x
+
+  elim-fin2-1 : Elim-fin2+ (swap i1) (swap-01 i1) (swap-10 i1) (λ x → swap-2+ x i1)
+  elim-fin2-1 P f0 f1 f2+ = suc-match P f1 λ x → suc-match (λ x → P (fsuc x)) f0 f2+ x
+
+  elim-fin2+ : ∀ i → Elim-fin2+' i
+  elim-fin2+ i = transp (λ j → Elim-fin2+' (j ∧ i)) (~ i) elim-fin2-0
+
+  elim-fin2+-With-propositional-computation0 : Elim-fin2+-With-propositional-computation (swap i0) (swap-01 i0) (swap-10 i0) (λ x → swap-2+ x i0)
+  elim-fin2+-With-propositional-computation0 = elim-fin2-0 , λ P p0 p1 p2+ → refl , (refl , λ x → refl)
+
+  elim-fin2+-With-propositional-computation : ∀ i → Elim-fin2+-With-propositional-computation (swap i) (swap-01 i) (swap-10 i) (λ x → swap-2+ x i)
+  elim-fin2+-With-propositional-computation i = transp (λ j → Elim-fin2+-With-propositional-computation (swap (j ∧ i)) (swap-01 (j ∧ i)) (swap-10 (j ∧ i)) (λ x → swap-2+ x (j ∧ i))) (~ i) elim-fin2+-With-propositional-computation0
+
+  pp : elim-fin2+ i1 ≡ elim-fin2-1
+  pp i P f0 f1 f2+ fzero = elim-fin2+-With-propositional-computation i1 .snd P f0 f1 f2+ .snd .fst i
+  pp i P f0 f1 f2+ (fsuc fzero) = elim-fin2+-With-propositional-computation i1 .snd P f0 f1 f2+ .fst i
+  pp i P f0 f1 f2+ (fsuc (fsuc x)) = elim-fin2+-With-propositional-computation i1 .snd P f0 f1 f2+ .snd .snd x i
+
+  elim-fin2+' : PathP (λ i → Elim-fin2+' i) elim-fin2-0 elim-fin2-1
+  elim-fin2+' i = hcomp (λ j → λ { (i = i0) → elim-fin2-0 ; (i = i1) → pp j }) (transp (λ j → Elim-fin2+' (j ∧ i)) (~ i) elim-fin2-0)
 
 bring-zero-to : ∀ {n} → Fin n → Fin n ≡ Fin n
 bring-zero-to {suc n} fzero = refl
@@ -123,7 +166,7 @@ open import Cubical.Foundations.Function
 
 module Cong-suc-manual where
 
-  cong-suc-fun : ∀ {A B} → (A → B) → Suc A → Suc B
+  cong-suc-fun : ∀ {A B : Set} → (A → B) → Suc A → Suc B
   cong-suc-fun fun fzero = fzero
   cong-suc-fun fun (fsuc f) = fsuc (fun f)
 
@@ -326,3 +369,9 @@ abstract
 
     prf' = snd rec
 
+factorial=implies=m≡n : ∀ m n → Factorial' m n → m ≡ n
+factorial=implies=m≡n zero zero f = refl
+factorial=implies=m≡n (suc m) (suc n) f = cong suc (factorial=implies=m≡n _ _ (fst f)) 
+
+implies=m≡n : ∀ {m n} → (e : Fin m ≡ Fin n) → m ≡ n
+implies=m≡n e = factorial=implies=m≡n _ _ (fst (convert-to-permutation e))
