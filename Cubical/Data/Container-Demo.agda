@@ -87,7 +87,7 @@ bags-equal i =
 +-accum-comm x y b = +-assoc x y b ∙ cong (λ q → q + b) (+-comm x y) ∙ (λ i → +-assoc y x b (~ i))
 
 sum : Bag ℕ → ℕ
-sum = FMSetRec.f 0 _+_ +-accum-comm
+sum = BagRec.f 0 _+_ +-accum-comm
 
 sum1 : sum bag1 ≡ 8
 sum1 i = 8

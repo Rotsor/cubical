@@ -86,6 +86,7 @@ module _ {ℓ ℓ'} {A : Type ℓ} {B : Type ℓ'} (i : Iso A B) where
   isoToIsEquiv .equiv-proof y .snd z = lemIso y (g y) (fst z) (s y) (snd z)
 
 
+
 isoToPath : ∀ {ℓ} {A B : Type ℓ} → (Iso A B) → A ≡ B
 isoToPath {A = A} {B = B} f i =
   Glue B (λ { (i = i0) → (A , (Iso.fun f , isoToIsEquiv f))

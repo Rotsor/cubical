@@ -111,3 +111,21 @@ hmm0 s₁ s₂ = transport (λ i →
 
 hmm : hasPropFibers FinP
 hmm S0 (s₁ , eq₁) (s₂ , eq₂) = J (λ S (e : FinP s₂ ≡ S) → ∀ (eq₁ : FinP s₁ ≡ S) → Path (fiber FinP S) (s₁ , eq₁) (s₂ , e)) (λ P → sym (hmm0 s₂ s₁ (λ i → P i))) eq₂ eq₁
+
+postulate
+  G : Set
+
+mutual
+  data SG : Set₁
+
+  FPE : SG → SG → Set
+  FPE = ?
+
+  tog : SG → G
+
+  data SG where
+    sg : SG
+    sg-eq : ∀ s₁ s₂ (P : FPE s₁ s₂) → s₁ ≡ s₂
+
+  FPE x y = ?
+  FP sg = P i

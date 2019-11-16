@@ -133,6 +133,15 @@ isProp→isPropPathP {B = B} {x = x} isPropB m = J P d m where
   d : P x refl
   d = isProp→isSet (isPropB x)
 
+isSet→isPropPathP : (∀ a → isSet (B a))
+                   → (m : x ≡ y) (g : B x) (h : B y)
+                   → isProp (PathP (λ i → B (m i)) g h)
+isSet→isPropPathP {B = B} {x = x} isSetB m = J P d m where
+  P : ∀ σc → x ≡ σc → _
+  P _ m = ∀ g h → isProp (PathP (λ i → B (m i)) g h)
+  d : P x refl
+  d = isSetB x
+
 isProp→isContrPathP : (∀ a → isProp (B a))
                     → (m : x ≡ y) (g : B x) (h : B y)
                     → isContr (PathP (λ i → B (m i)) g h)
@@ -275,7 +284,7 @@ isOfHLevelΣ {B = B} (suc (suc n)) h1 h2 x y =
                        (subst B p (snd x)) (snd y)
   in transport (λ i → isOfHLevel (suc n) (pathSigma≡sigmaPath x y (~ i))) h3
 
-hLevel≃ : ∀ n → {A B : Type ℓ} (hA : isOfHLevel n A) (hB : isOfHLevel n B) → isOfHLevel n (A ≃ B)
+hLevel≃ : ∀ n → {A : Type ℓ} {B : Type ℓ'} (hA : isOfHLevel n A) (hB : isOfHLevel n B) → isOfHLevel n (A ≃ B)
 hLevel≃ zero {A = A} {B = B} hA hB = A≃B , contr
   where
   A≃B : A ≃ B
@@ -297,6 +306,13 @@ hLevelRespectEquiv 1 eq hA x y i =
         (cong (eq .fst) (hA (invEquiv eq .fst x) (invEquiv eq .fst y)) i)
 hLevelRespectEquiv {A = A} {B = B} (suc (suc n)) eq hA x y =
   hLevelRespectEquiv (suc n) (invEquiv (congEquiv (invEquiv eq))) (hA _ _)
+
+isOfHlevel-suc : ∀ n → (A → isOfHLevel (suc n) A) → isOfHLevel (suc n) A
+isOfHlevel-suc zero prf = λ x → prf x x
+isOfHlevel-suc (suc n) prf = λ x y → prf x x y
+
+hLevel≃₁ : ∀ n → {A : Type ℓ} {B : Type ℓ'} (hA : isOfHLevel (suc n) A) → isOfHLevel (suc n) (A ≃ B)
+hLevel≃₁ n ha = isOfHlevel-suc n λ e → hLevel≃ (suc n) ha (hLevelRespectEquiv (suc n) e ha)
 
 hLevel≡ : ∀ n → {A B : Type ℓ} (hA : isOfHLevel n A) (hB : isOfHLevel n B) →
   isOfHLevel n (A ≡ B)

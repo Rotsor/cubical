@@ -287,22 +287,23 @@ NatImplBinℕ : NatImpl Binℕ
 z NatImplBinℕ = binℕ0
 s NatImplBinℕ = sucBinℕ
 
+sss : PathP (λ i → Binℕ≡ℕ (~ i) → Binℕ≡ℕ (~ i)) suc sucBinℕ
+sss i x = outS (glue-S (λ { (i = i0) → suc x; (i = i1) → (sucBinℕ x) }) brr2) where
+
+  Suc : (S : Set) → Set
+  Suc S = S → S
+
+  brr : Sub ℕ (i ∨ ~ i) (λ { (i = i0) → suc x; (i = i1) → suc (Binℕ→ℕ x) })
+  brr = inS (suc (outS (unglue-S (i ∨ ~ i) x)))
+
+  brr2 : Sub ℕ (i ∨ ~ i) (λ { (i = i0) → suc x; (i = i1) → Binℕ→ℕ (sucBinℕ x) })
+  brr2 = inS (hcomp (λ j → λ { (i = i0) → suc x; (i = i1) → Binℕ→ℕsuc x j }) (outS brr))
+
 -- Using the equality between binary and unary numbers we can get an
 -- equality between the two implementations of the NatImpl interface
 NatImplℕ≡Binℕ : PathP (λ i → NatImpl (Binℕ≡ℕ (~ i))) NatImplℕ NatImplBinℕ
 z (NatImplℕ≡Binℕ i) = transp (λ j → Binℕ≡ℕ (~ i ∨ ~ j)) (~ i) zero
-s (NatImplℕ≡Binℕ i) =
-  λ x → glue (λ { (i = i0) → suc x
-                ; (i = i1) → sucBinℕ x })
-             -- We need to do use and hcomp to do and endpoint
-             -- correction as "suc (unglue x)" connects "suc x"
-             -- with "suc (Binℕ→ℕ x)" along i (which makes sense as
-             -- x varies from ℕ to Binℕ along i), but we need
-             -- something from "suc x" to "Binℕ→ℕ (sucBinℕ x)" for
-             -- the glue to be well-formed
-             (hcomp (λ j → λ { (i = i0) → suc x
-                             ; (i = i1) → Binℕ→ℕsuc x j })
-                    (suc (unglue (i ∨ ~ i) x)))
+s (NatImplℕ≡Binℕ i) = sss i
 
 -- We then use this to transport +-suc from unary to binary numbers
 +Binℕ-suc : ∀ m n → m +Binℕ sucBinℕ n ≡ sucBinℕ (m +Binℕ n)
