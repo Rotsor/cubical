@@ -13,12 +13,15 @@ open import Cubical.Foundations.Embedding
 
 open import Agda.Primitive using (lzero; lsuc; _⊔_)
 
+private
+  variable
+    ℓ ℓ' : Level
+
 
 module Impl where
 
   private
     variable
-      ℓ ℓ' : Level
       A : Set ℓ
       x : A
 
@@ -108,7 +111,7 @@ connected-isProp : ∀ {ℓ} (S : Set ℓ) (base : S) → isProp (∀ (s : S) �
 connected-isProp S base = propPi λ _ → squash
 
 module E where
-  record Conn-like {ℓ : Level} {A : Set ℓ} (x : A) : Set (lsuc ℓ) where
+  record Connected-component-structure {A : Set ℓ} (x : A) : Set (lsuc ℓ) where
    field
     T : Set ℓ
     toA : T → A
@@ -116,28 +119,28 @@ module E where
     base : T
     base-x : toA base ≡ x
 
-    []-isEmbedding : isEmbedding toA
+    toA-isEmbedding : isEmbedding toA
     connected : ∀ (s : T) → ∥ s ≡ base ∥
 
    connected₂ : ∀ (x y : T) → ∥ x ≡ y ∥
    connected₂ x y = propTruncBind (λ x≡base → propTruncBind (λ y≡base → ∣ x≡base ∙ sym y≡base ∣) (connected y)) (connected x)
    
 
-  open Conn-like
+  open Connected-component-structure
 
 
-  get-fiber : ∀ {ℓ} {A : Set ℓ} (x : A) → (X : Conn-like x) → ∀ y → ∥ x ≡ y ∥ → fiber (X .toA) y
+  get-fiber : ∀ {ℓ} {A : Set ℓ} (x : A) → (X : Connected-component-structure x) → ∀ y → ∥ x ≡ y ∥ → fiber (X .toA) y
   get-fiber x X y x≡y = recPropTrunc (prop-fibers y) fib x≡y where
-    prop-fibers = isEmbedding→hasPropFibers (X .[]-isEmbedding)
+    prop-fibers = isEmbedding→hasPropFibers (X .toA-isEmbedding)
 
     fib : x ≡ y → fiber (λ z → toA X z) y
     fib x≡y = (X .base) , X .base-x ∙ x≡y
 
-  module Equivalence {ℓ} {A : Set ℓ} (x : A) (X Y : Conn-like x) where
+  module Equivalence {ℓ} {A : Set ℓ} (x : A) (X Y : Connected-component-structure x) where
 
-    y-hasPropFibers = isEmbedding→hasPropFibers (Y .[]-isEmbedding)
+    y-hasPropFibers = isEmbedding→hasPropFibers (Y .toA-isEmbedding)
 
-    x-hasPropFibers = isEmbedding→hasPropFibers (X .[]-isEmbedding)
+    x-hasPropFibers = isEmbedding→hasPropFibers (X .toA-isEmbedding)
 
     x-cong : ∀ a b → X .toA a ≡ X .toA b → a ≡ b
     x-cong a b e = cong fst (x-hasPropFibers (X .toA a) (a , refl) (b , sym e))
@@ -200,8 +203,8 @@ module E where
     base-x-Path : PathP (λ i → (toA-Path i) (base-Path i) ≡ x) (X .base-x) (Y .base-x)
     base-x-Path i = snd (base-fiber-path i)
 
-    []-isEmbedding-path =
-      Prop-path (λ i → isEmbedding (toA-Path i)) isEmbeddingIsProp (X .[]-isEmbedding) (Y .[]-isEmbedding)
+    toA-isEmbedding-path =
+      Prop-path (λ i → isEmbedding (toA-Path i)) isEmbeddingIsProp (X .toA-isEmbedding) (Y .toA-isEmbedding)
     connected-path = Prop-path (λ i → ∀ (s : T-Path i) → ∥ s ≡ base-Path i ∥) (connected-isProp _ _) (X .connected) (Y .connected)
 
     X≡Y : X ≡ Y
@@ -210,18 +213,73 @@ module E where
        toA = toA-Path i;
        base = fst (base-fiber-path i);
        base-x = snd (base-fiber-path i);
-       []-isEmbedding = []-isEmbedding-path i;
+       toA-isEmbedding = toA-isEmbedding-path i;
        connected = connected-path i
      }
 
-open E using (Conn-like; module Equivalence)
+open E using (Connected-component-structure; module Equivalence)
 
-Conn-like-contr : ∀ {ℓ : Level} {A : Set ℓ} (x : A) → isContr (Conn-like x)
-Conn-like-contr x = record
+Connected-component-structure-contr : ∀ {ℓ : Level} {A : Set ℓ} (x : A) → isContr (Connected-component-structure x)
+Connected-component-structure-contr x = record
                       { T = Impl.Conn x
                       ; toA = Impl.[_]
                       ; base = Impl.base
                       ; base-x = refl
-                      ; []-isEmbedding = Impl.[]-isEmbedding
+                      ; toA-isEmbedding = Impl.[]-isEmbedding
                       ; connected = Impl.connected
                       } , Equivalence.X≡Y x _
+
+subtype-equal :
+  ∀ {A : Set ℓ} {P : A → Set ℓ'}
+  → (∀ x → isProp (P x))
+  → ∀ (x₁ x₂ : A) → x₁ ≡ x₂ → ∀ {p₁ : P x₁} {p₂ : P x₂} → (x₁ , p₁) ≡ (x₂ , p₂)
+subtype-equal {A = A} {P} isProp x₁ x₂ e {p₁} {p₂} i =
+  e i , isProp (e i) (transp (λ j → P (e (i ∧ j))) (~ i) p₁) ((transp (λ j → P (e (i ∨ ~ j))) (i) p₂)) i
+
+subtype-projection-is-embedding :
+  ∀ {A : Set ℓ} {P : A → Set ℓ'}
+  → (∀ x → isProp (P x))
+  → isEmbedding (fst {B = P})
+subtype-projection-is-embedding {A = A} {P} isProp (x , xp) (y , yp) = isoToIsEquiv (iso to from proof1 proof2) where
+  to : (p : (x , xp) ≡ (y , yp)) → x ≡ y
+  to = cong fst
+
+  from : x ≡ y → (x , xp) ≡ (y , yp)
+  from x≡y i = x≡y i ,
+    isProp (x≡y i)
+      (transp (λ j → P (x≡y (i ∧ j))) (~ i) xp)
+      (transp (λ j → P ((x≡y (i ∨ ~ j)))) i yp) i
+
+  proof1 : ∀ p → to (from p) ≡ p
+  proof1 p = refl
+
+  proof2 : ∀ p → from (to p) ≡ p
+  proof2 p i j = fst (p j) , hcomp (λ k → λ {
+     (i = i0) → isProp (fst (p j)) ((transport (λ k → P (fst (p (k ∧ j)))) xp)) (snd (from (to p) j)) k;
+     (i = i1) → isProp (fst (p j)) ((transport (λ k → P (fst (p (k ∧ j)))) xp)) (snd ((p) j)) k;
+     (j = i0) → isProp (fst (p j)) ((transport (λ k → P (fst (p (k ∧ j)))) xp)) (snd ((p) j)) k;
+     (j = i1) → isProp (fst (p j)) ((transport (λ k → P (fst (p (k ∧ j)))) xp)) (snd ((p) j)) k
+     })
+    (transport (λ k → P (fst (p (k ∧ j)))) xp)
+
+Connected-component-structure-contr' : ∀ {ℓ : Level} {A : Set ℓ} (x : A) → isContr (Connected-component-structure x)
+Connected-component-structure-contr' {A = A} x = record
+                      { T = T
+                      ; toA = toA
+                      ; base = (x , ∣ refl ∣)
+                      ; base-x = refl
+                      ; toA-isEmbedding = toA-isEmbedding
+                      ; connected = toA-connected
+                      } , Equivalence.X≡Y x _
+  where
+
+    T = Σ A (λ y → ∥ x ≡ y ∥)
+
+    toA : T → A
+    toA = fst
+
+    toA-isEmbedding : isEmbedding toA
+    toA-isEmbedding t₁ t₂ = subtype-projection-is-embedding (λ _ → squash) t₁ t₂
+
+    toA-connected : ∀ (s : T) → ∥ s ≡ (x , ∣ refl ∣) ∥
+    toA-connected (y , x≡y) = propTruncBind (λ x≡y → ∣ subtype-equal (λ _ → squash) y x (sym x≡y) ∣) x≡y
