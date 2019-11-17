@@ -202,7 +202,7 @@ module BagRec {A : Set} {B : Set}
   cong-suc-respected p respect i vs = vs fzero ∷* respect i (vs ∘ fsuc)
 
   compose-respected : ∀ {l m n} → (p : Fin l ≡ Fin m) (q : Fin m ≡ Fin n) → Respected p → Respected q → Respected (p ∙ q)
-  compose-respected P Q p q i =  comp (λ j → Fold (compPath-filler P Q j i)) (i ∨ ~ i) (λ j → λ { (i = i0) → fold; (i = i1) → q j }) (p i)
+  compose-respected P Q p q i =  comp (λ j → Fold (compPath-filler P Q j i)) (λ j → λ { (i = i0) → fold; (i = i1) → q j }) (p i)
 
   bring-zero-to-respected : ∀ {n} (k : Fin n) → Respected (bring-zero-to k)
   bring-zero-to-respected {suc n} (inl x) = id-respected
