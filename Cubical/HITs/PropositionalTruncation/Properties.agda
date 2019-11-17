@@ -31,6 +31,9 @@ recPropTrunc Pprop f (squash x y i) =
 propTruncIsProp : isProp ∥ A ∥
 propTruncIsProp x y = squash x y
 
+propTruncBind : ∀ {A B : Type ℓ} → (A → ∥ B ∥) → ∥ A ∥ → ∥ B ∥
+propTruncBind f x = recPropTrunc propTruncIsProp f x 
+
 elimPropTrunc : ∀ {P : ∥ A ∥ → Type ℓ} → ((a : ∥ A ∥) → isProp (P a)) →
                 ((x : A) → P ∣ x ∣) → (a : ∥ A ∥) → P a
 elimPropTrunc                 Pprop f ∣ x ∣          = f x
