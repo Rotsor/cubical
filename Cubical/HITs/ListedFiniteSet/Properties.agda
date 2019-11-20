@@ -69,9 +69,12 @@ module DDList
   open import Cubical.Foundations.Logic
   open import Cubical.HITs.PropositionalTruncation
 
+  unsort : DDL → LFSet A
+  unsort [] = []
+  unsort (cons x xs x>xs) = x ∷ unsort xs
+
   _∈'_ : A → DDL → hProp
-  x ∈' [] = ⊥
-  x ∈' cons y zs _ = x ≡ₚ y ⊔ x ∈' zs
+  a ∈' l = a ∈ unsort l
 
   toSet : DDL → A → hProp
   toSet l x = x ∈' l
@@ -115,6 +118,36 @@ module DDList
   Tri' : A → A → Set
   Tri' x y = Tri (y > x) (x ≡ y) (x > y)
 
+  insert : A → DDL → DDL
+  >ᴴinsert : {x y : A} {u : DDL}
+           → y >ᴴ u → (y > x) → y >ᴴ insert x u
+
+  insert x [] = cons x [] >ᴴ[]
+  insert x (cons y zs good) with tri x y
+  insert x (cons y zs good) | tri-< x<y _ _ = cons y (insert x zs) (>ᴴinsert good x<y)
+  insert x (cons y zs good) | tri-≡ _ x≡y _ = cons y zs good
+  insert x (cons y zs good) | tri-> _ _ x>y = cons x (cons y zs good) (>ᴴcons x>y)
+  >ᴴinsert >ᴴ[] y>x = >ᴴcons y>x
+  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x with tri x y
+  >ᴴinsert {x} {y} (>ᴴcons {z} z>zs) y>x | tri-< _ _ e = >ᴴcons z>zs
+  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x | tri-≡ _ _ e = >ᴴcons y>ys
+  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x | tri-> _ _ _ = >ᴴcons y>x
+
+  insert-correct : ∀ x ys → unsort (insert x ys) ≡ (x ∷ unsort ys)
+  insert-correct x [] = refl
+  insert-correct x (cons y zs y>zs) with tri x y
+  ... | tri-< _ _ _ =
+    y ∷ unsort (insert x zs) ≡⟨ (λ i → y ∷ (insert-correct x zs i)) ⟩
+    y ∷ x ∷ unsort zs ≡⟨ comm _ _ _ ⟩
+    x ∷ y ∷ unsort zs ∎
+  ... | tri-≡ _ x≡y _ = sym (dup y (unsort zs)) ∙ (λ i → (x≡y (~ i)) ∷ y ∷ unsort zs)
+  ... | tri-> _ _ _ = refl
+
+  insert-correct₂ : ∀ x y zs → unsort (insert x (insert y zs)) ≡ (x ∷ y ∷ unsort zs)
+  insert-correct₂ x y zs =
+    insert-correct x (insert y zs)
+    ∙ cong (λ q → x ∷ q) (insert-correct y zs)
+
   toSet-inj : ∀ l₁ l₂ → toSet l₁ ≡ toSet l₂ → l₁ ≡ l₂
   toSet-inj [] [] eq = refl
   toSet-inj [] (cons y ys y>ys) eq = Empty.⊥-elim (transport (λ i → [ absurd (~ i) ]) (inl ∣ refl ∣)) where
@@ -155,121 +188,46 @@ module DDList
 
       r = toSet-inj xs ys λ i a → ⇔toPath {P = a ∈' xs} {Q = a ∈' ys} (rest-equal-1 a) (rest-equal-2 a) i
 
-  ⊔-l-comm : ∀ {ℓ ℓ' ℓ''} → (P : hProp {ℓ}) (Q : hProp {ℓ'}) (R : hProp {ℓ''})
-    → P ⊔ Q ⊔ R ≡ Q ⊔ P ⊔ R
-  ⊔-l-comm P Q R =
-      P ⊔ Q ⊔ R ≡⟨ ⊔-assoc P Q R ⟩
-      (P ⊔ Q) ⊔ R ≡⟨ (λ i → (⊔-comm P Q i) ⊔ R) ⟩
-      (Q ⊔ P) ⊔ R ≡⟨ sym (⊔-assoc Q P R) ⟩
-      Q ⊔ P ⊔ R ∎
+  unsort-inj : ∀ x y → unsort x ≡ unsort y → x ≡ y
+  unsort-inj x y e = toSet-inj x y λ i a → a ∈ (e i)
 
-  insert : A → DDL → DDL
-  >ᴴinsert : {x y : A} {u : DDL}
-           → y >ᴴ u → (y > x) → y >ᴴ insert x u
-
-  insert x [] = cons x [] >ᴴ[]
-  insert x (cons y zs good) with tri x y
-  insert x (cons y zs good) | tri-< x<y _ _ = cons y (insert x zs) (>ᴴinsert good x<y)
-  insert x (cons y zs good) | tri-≡ _ x≡y _ = cons y zs good
-  insert x (cons y zs good) | tri-> _ _ x>y = cons x (cons y zs good) (>ᴴcons x>y)
-  >ᴴinsert >ᴴ[] y>x = >ᴴcons y>x
-  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x with tri x y
-  >ᴴinsert {x} {y} (>ᴴcons {z} z>zs) y>x | tri-< _ _ e = >ᴴcons z>zs
-  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x | tri-≡ _ _ e = >ᴴcons y>ys
-  >ᴴinsert {x} (>ᴴcons {y} y>ys) y>x | tri-> _ _ _ = >ᴴcons y>x
-
-  -- for some reason Agda refuses to have a 'with' clause in `insert-outcome`
-  -- reported an Agda issue here: https://github.com/agda/agda/issues/4214
-  insert-tri :
-     ∀ {ℓ} (P : DDL → Set ℓ)
-     → ∀ x y zs y>zs
-     → (∀ prf → P (cons y (insert x zs) prf))
-     → (x ≡ y → P (cons y zs y>zs))
-     → (∀ prf → P (cons x (cons y zs y>zs) prf))
-     →  (P (insert x (cons y zs y>zs)))
-  insert-tri P x y zs y>zs p0 p1 p2 with tri x y
-  insert-tri P x y zs y>zs p0 p1 p2 | tri-< x₁ x₂ x₃ = p0 _
-  insert-tri P x y zs y>zs p0 p1 p2 | tri-≡ x₁ ≡ x₃ = p1 ≡
-  insert-tri P x y zs y>zs p0 p1 p2 | tri-> x₁ x₂ x₃ = p2 _
-
-  insert-correct : ∀ x ys a → toSet (insert x ys) a ≡ (a ≡ₚ x ⊔ toSet ys a)
-  insert-correct x [] a = refl
-  insert-correct x (cons y zs y>zs) a =
-    insert-tri
-      (λ w → toSet w a ≡ (a ≡ₚ x ⊔ toSet (cons y zs y>zs) a))
-      x y zs y>zs
-      (λ _ →
-        a ≡ₚ y ⊔ toSet (insert x zs) a ≡⟨ (λ i → a ≡ₚ y ⊔ insert-correct x zs a i) ⟩
-        a ≡ₚ y ⊔ (a ≡ₚ x ⊔ toSet zs a) ≡⟨ ⊔-l-comm (a ≡ₚ y) (a ≡ₚ x) (toSet zs a) ⟩
-        a ≡ₚ x ⊔ (a ≡ₚ y ⊔ toSet zs a) ∎)
-      ((λ x≡y → a ≡ₚ y ⊔ toSet zs a ≡⟨
-          cong (λ P → P ⊔ toSet zs a)
-            (a ≡ₚ y ≡⟨ (λ i → ⊔-idem (a ≡ₚ y) (~ i)) ⟩
-             a ≡ₚ y ⊔ a ≡ₚ y  ≡⟨ (λ i → a ≡ₚ (x≡y (~ i)) ⊔ a ≡ₚ y) ⟩
-             a ≡ₚ x ⊔ a ≡ₚ y ∎) ⟩
-        (a ≡ₚ x ⊔ a ≡ₚ y) ⊔ toSet zs a ≡⟨ sym (⊔-assoc (a ≡ₚ x) (a ≡ₚ y) (toSet zs a)) ⟩
-        a ≡ₚ x ⊔ (a ≡ₚ y ⊔ toSet zs a) ∎))
-      (λ _ → refl)
-
-  insert-swap : (x y : A) (zs : DDL)
-         → insert x (insert y zs) ≡ insert y (insert x zs)
-  insert-swap x y zs = toSet-inj (insert x (insert y zs)) (insert y (insert x zs))
-    λ i a →
-      (toSet (insert x (insert y zs)) a
-        ≡⟨ insert-correct x (insert y zs) a ⟩
-      (a ≡ₚ x) ⊔ (toSet (insert y zs) a)
-        ≡⟨ (λ i → (a ≡ₚ x) ⊔ insert-correct y zs a i) ⟩
-      (a ≡ₚ x) ⊔ ((a ≡ₚ y) ⊔ (toSet zs a))
-        ≡⟨ ⊔-l-comm (a ≡ₚ x) (a ≡ₚ y) (toSet zs a) ⟩
-      (a ≡ₚ y) ⊔ ((a ≡ₚ x) ⊔ (toSet zs a))
-        ≡⟨ (λ i → (a ≡ₚ y) ⊔ insert-correct x zs a (~ i)) ⟩
-      (a ≡ₚ y) ⊔ toSet (insert x zs) a
-        ≡⟨ (λ i → insert-correct y (insert x zs) a (~ i)) ⟩
-      toSet (insert y (insert x zs)) a ∎) i
+  insert-swap : (x y : A) (zs : DDL) → insert x (insert y zs) ≡ insert y (insert x zs)
+  insert-swap x y zs =
+    unsort-inj (insert x (insert y zs)) (insert y (insert x zs))
+      (unsort (insert x (insert y zs))
+        ≡⟨ (λ i → insert-correct₂ x y zs i) ⟩
+      x ∷ y ∷ unsort zs
+        ≡⟨ (λ i → comm x y (unsort zs) i) ⟩
+      y ∷ x ∷ unsort zs
+        ≡⟨ (λ i → insert-correct₂ y x zs (~ i)) ⟩
+      unsort (insert y (insert x zs)) ∎)
 
   insert-dup : (x : A) (ys : DDL)
          → insert x (insert x ys) ≡ insert x ys
-  insert-dup x ys = toSet-inj (insert x (insert x ys)) (insert x ys)
-    λ i (a : A) →
-      (toSet (insert x (insert x ys)) a
-        ≡⟨ insert-correct x (insert x ys) a ⟩
-      (a ≡ₚ x) ⊔ (toSet (insert x ys) a)
-        ≡⟨ (λ i → (a ≡ₚ x) ⊔ insert-correct x ys a i) ⟩
-      (a ≡ₚ x) ⊔ ((a ≡ₚ x) ⊔ (toSet ys a))
-        ≡⟨ ⊔-assoc (a ≡ₚ x) (a ≡ₚ x) (toSet ys a) ⟩
-      ((a ≡ₚ x) ⊔ (a ≡ₚ x)) ⊔ (toSet ys a)
-        ≡⟨ (λ i → ⊔-idem (a ≡ₚ x) i ⊔ (toSet ys a) ) ⟩
-      (a ≡ₚ x) ⊔ (toSet ys a)
-        ≡⟨ (λ i → insert-correct x ys a (~ i)) ⟩
-      toSet (insert x ys) a ∎) i
-
+  insert-dup x ys = unsort-inj (insert x (insert x ys)) (insert x ys)
+    (
+      (unsort (insert x (insert x ys))
+        ≡⟨ (λ i → insert-correct₂ x x ys i) ⟩
+      x ∷ x ∷ unsort ys
+        ≡⟨ dup x (unsort ys) ⟩
+      x ∷ unsort ys
+        ≡⟨ (λ i → insert-correct x ys (~ i)) ⟩
+      unsort (insert x ys) ∎)
+    )
 
   sort : LFSet A → DDL
   sort = LFSetRec.f [] insert insert-swap insert-dup DDL-isSet
-
-  unsort : DDL → LFSet A
-  unsort [] = []
-  unsort (cons x xs x>xs) = x ∷ unsort xs
-
-  sort∘unsort : ∀ x → sort (unsort x) ≡ x
-  sort∘unsort [] = refl
-  sort∘unsort (cons x ys x>ys) =
-    sort (x ∷ unsort ys)
-      ≡⟨ {!!} ⟩
-    (cons x ys x>ys) ∎
-
-  -- WRONG
-  unsort-sort-cons0 : ∀ x ys g → unsort (sort (x ∷ ys)) ≡ unsort (cons x (sort ys) g)
-  unsort-sort-cons0 = {!!}
-
-  -- WRONG:
-  unsort-sort-cons : ∀ x ys → unsort (sort (x ∷ ys)) ≡ x ∷ unsort (sort ys)
-  unsort-sort-cons x ys = unsort-sort-cons0 x ys {!!}
 
   unsort∘sort : ∀ x → unsort (sort x) ≡ x
   unsort∘sort x =
      LFPropElim.f {B = λ x → unsort (sort x) ≡ x}
        refl
-       (λ x {ys} ys-good → unsort-sort-cons x ys ∙ cong (λ q → x ∷ q) ys-good)
+       (λ x {ys} ys-good → insert-correct x (sort ys) ∙ cong (λ q → x ∷ q) ys-good)
        (λ xs → trunc (unsort (sort xs)) xs)
        x
+
+  sort∘unsort : ∀ x → sort (unsort x) ≡ x
+  sort∘unsort x = unsort-inj (sort (unsort x)) x (unsort∘sort (unsort x))
+
+  equiv : DDL ≃ LFSet A
+  equiv = isoToEquiv (iso unsort sort unsort∘sort sort∘unsort)
