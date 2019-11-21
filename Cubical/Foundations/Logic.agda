@@ -56,6 +56,9 @@ private
 _≡ₚ_ : (x y : A) → hProp
 x ≡ₚ y = ∥ x ≡ y ∥ₚ
 
+reflₚ : ∀ {x : A} → [ x ≡ₚ x ]
+reflₚ = ∣ refl ∣
+
 hProp≡ : [ P ] ≡ [ Q ] → P ≡ Q
 hProp≡ p = ΣProp≡ (\ _ → isPropIsProp) p
 
@@ -238,6 +241,9 @@ Decₚ P = Dec [ P ] , isPropDec (snd P)
 
 ⊓-identityʳ : (P : hProp {ℓ}) → P ⊓ ⊤ ≡ P
 ⊓-identityʳ _ = ⇔toPath D.proj₁ λ x → x D., D.tt
+
+⊓-cancel : (P : hProp) → ¬ P ⊓ P ≡ ⊥
+⊓-cancel _ = ⇔toPath (λ { (¬p D., p) → D.⊥-elim (¬p p) }) D.⊥-elim
 
 --------------------------------------------------------------------------------
 -- Distributive laws

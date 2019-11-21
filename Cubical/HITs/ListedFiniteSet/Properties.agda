@@ -4,6 +4,7 @@ module Cubical.HITs.ListedFiniteSet.Properties where
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Everything
 open import Cubical.Data.Nat
+open import Agda.Primitive using (lzero)
 
 open import Cubical.HITs.ListedFiniteSet.Base
 
@@ -59,7 +60,6 @@ module DDList
    (_>_ : A → A → Type₀)
    (>-isProp : ∀ {x y} → isProp (x > y))
    (tri : ∀ x y → Tri (y > x) (x ≡ y) (x > y))
-   (>-dec : ∀ x y → Dec (x > y))
    (>-trans : ∀ {x y z} → x > y → y > z → x > z)
    (>-irreflexive : ∀ {x} → Type¬ x > x)
   where
@@ -98,14 +98,6 @@ module DDList
 
   absurd-trunc : ∀ {A : Set} → Type¬ A → Type¬ ∥ A ∥
   absurd-trunc ¬A ∥A∥ = recPropTrunc Empty.isProp⊥ ¬A ∥A∥
-
-  not-at-head : ∀ x l x>l a → Cubical.Relation.Nullary.¬ a ≡ x → a ∈' l ≡ a ∈' (cons x l x>l)
-  not-at-head x l x>l a a≢x =
-    a ∈' l ≡⟨ (λ i → ⊔-identityˡ (a ∈' l) (~ i)) ⟩
-    ⊥ ⊔ a ∈' l ≡⟨ cong (λ q → q ⊔ a ∈' l) (⇔toPath {P = ⊥} {Q = a ≡ₚ x} Empty.⊥-elim (recPropTrunc Empty.isProp⊥ a≢x)) ⟩
-    a ≡ₚ x ⊔ a ∈' l ≡⟨ refl ⟩
-    a ∈' (cons x l x>l)
-     ∎
 
   >ᴴ-isProp : ∀ x xs → isProp (x >ᴴ xs)
   >ᴴ-isProp x _ >ᴴ[] >ᴴ[] = refl
@@ -148,45 +140,59 @@ module DDList
     insert-correct x (insert y zs)
     ∙ cong (λ q → x ∷ q) (insert-correct y zs)
 
+  toSet' : LFSet A → A → hProp
+  toSet' x = λ a → a ∈ x
+
+  exclude : A → (A → hProp {lzero}) → (A → hProp {lzero})
+  exclude x h a = ¬ a ≡ₚ x ⊓ h a
+
+
+  import Cubical.Data.Prod  as D
+
+  -- This looks ugly.
+  -- Maybe better to just use one ⇔toPath for the whole >-excluded?
+  >-excluded : ∀ x xs → x >ᴴ xs → exclude x (toSet' (x ∷ unsort xs)) ≡ toSet xs
+  >-excluded x xs x>xs i a = (
+     ¬ a ≡ₚ x ⊓ (a ≡ₚ x ⊔ toSet' (unsort xs) a) ≡⟨ ⊓-⊔-distribˡ (¬ a ≡ₚ x) (a ≡ₚ x) (toSet' (unsort xs) a)  ⟩
+     (¬ a ≡ₚ x ⊓ a ≡ₚ x) ⊔ (¬ a ≡ₚ x ⊓ toSet' (unsort xs) a) ≡⟨ (λ i → (⊓-cancel (a ≡ₚ x) i) ⊔ (¬ a ≡ₚ x ⊓ toSet' (unsort xs) a)) ⟩
+     ⊥ ⊔ (¬ a ≡ₚ x ⊓ toSet' (unsort xs) a) ≡⟨ ⊔-identityˡ _ ⟩
+     (¬ a ≡ₚ x ⊓ toSet xs a) ≡⟨ hmm a x (toSet xs) absent ⟩
+     toSet xs a ∎) i
+    where
+     absent = >-absent x xs x>xs
+
+     hmm : ∀ (a : A) x (P : A → hProp {lzero}) → [ ¬ P x ] → ¬ a ≡ₚ x ⊓ (P a) ≡ P a
+     hmm a x P nPx = ⇔toPath D.proj₂ λ pa → ((λ a≡ₚx → nPx (recPropTrunc (snd (P x)) (λ a≡x → transport (λ i → [ P (a≡x i) ]) pa) a≡ₚx)) D., pa)
+
   toSet-inj : ∀ l₁ l₂ → toSet l₁ ≡ toSet l₂ → l₁ ≡ l₂
   toSet-inj [] [] eq = refl
-  toSet-inj [] (cons y ys y>ys) eq = Empty.⊥-elim (transport (λ i → [ absurd (~ i) ]) (inl ∣ refl ∣)) where
-    absurd : ⊥ ≡ y ≡ₚ y ⊔ (y ∈' ys)
-    absurd i = eq i y
-  toSet-inj (cons y ys y>ys) [] eq = Empty.⊥-elim (transport (λ i → [ absurd (~ i) ]) (inl ∣ refl ∣)) where
-    absurd : ⊥ ≡ y ≡ₚ y ⊔ (y ∈' ys)
-    absurd i = eq (~ i) y
-  toSet-inj (cons x xs x>xs) (cons y ys y>ys) e = w (tri x y) where
-    w : Tri' x y → cons x xs x>xs ≡ cons y ys y>ys
-    w (tri-< y>x _ _) = Empty.⊥-elim (>-absent y (cons x xs x>xs) (>ᴴcons y>x) (transport (λ i → [ e (~ i) y ]) (inl ∣ refl ∣)))
-    w (tri-> _ _ x>y) = Empty.⊥-elim (>-absent x (cons y ys y>ys) (>ᴴcons x>y) (transport (λ i → [ e (i) x ]) (inl ∣ refl ∣)))
-    w (tri-≡ _ x≡y _) = λ i → cons (x≡y i) (r i)
+  toSet-inj [] (cons y ys y>ys) eq = Empty.⊥-elim (transport (λ i → [ eq (~ i) y ]) (inl ∣ refl ∣))
+  toSet-inj (cons y ys y>ys) [] eq = Empty.⊥-elim (transport (λ i → [ eq i y ]) (inl ∣ refl ∣))
+  toSet-inj (cons x xs x>xs) (cons y ys y>ys) e =
+     ⊔-elim (x ≡ₚ y) (x ∈ unsort ys)
+       (λ _ → ((cons x xs x>xs) ≡ (cons y ys y>ys)) , DDL-isSet _ _)
+       (recPropTrunc (DDL-isSet _ _) with-x≡y)
+       (λ x∈ys →
+         Empty.⊥-elim
+           (>-absent y (cons x xs x>xs)
+             (>ᴴcons (>-all y ys y>ys x x∈ys)) (transport (λ i → [ e (~ i) y ]) (inl ∣ refl ∣))))
+       (transport (λ i → [ e i x ]) (inl ∣ refl ∣)) where
+    with-x≡y : x ≡ y → (cons x xs x>xs) ≡ (cons y ys y>ys)
+    with-x≡y x≡y = λ i → cons (x≡y i) (r i)
          (>ᴴ-isProp (x≡y i) (r i)
            (transp (λ j → (x≡y (i ∧ j)) >ᴴ r (i ∧ j)) (~ i) x>xs)
            (transp (λ j → (x≡y (i ∨ ~ j)) >ᴴ r (i ∨ ~ j)) i y>ys)
            i) where
 
-      rest-equal-lemma : ∀ x xs → (x>xs : x >ᴴ xs) → ∀ y ys → (y>ys : y >ᴴ ys) → x ≡ y → ∀ a → toSet (cons x xs x>xs) ≡ toSet (cons y ys y>ys) → [ a ∈' xs ] → [ a ∈' ys ]
-      rest-equal-lemma x xs x>xs y ys y>ys x≡y a e a∈xs =
-          ⊔-elim (a ≡ₚ y) (a ∈' ys) (λ _ → a ∈' ys) (λ a≡ₚy → Empty.⊥-elim (absurd-trunc a≢y a≡ₚy)) (λ a∈ys → a∈ys) a∈y∷ys
-       where
-        x>a : x > a
-        x>a = >-all x xs x>xs a a∈xs
-
-        a≢y : Type¬ (a ≡ y)
-        a≢y a≡y =  >-irreflexive (transp (λ i → a≡x (~ i) > a) i0 x>a) where
-          a≡x = (a≡y ∙ sym x≡y)
-
-        a∈y∷ys : [ a ∈' (cons y ys y>ys) ]
-        a∈y∷ys = transport (λ i → [ e i a ]) (inr a∈xs)
-
-      rest-equal-1 : ∀ a → [ a ∈' xs ] → [ a ∈' ys ]
-      rest-equal-1 a a∈xs = rest-equal-lemma x xs x>xs y ys y>ys x≡y a e a∈xs
-
-      rest-equal-2 : ∀ a → [ a ∈' ys ] → [ a ∈' xs ]
-      rest-equal-2 a a∈ys = rest-equal-lemma y ys y>ys x xs x>xs (sym x≡y) a (sym e) a∈ys
-
-      r = toSet-inj xs ys λ i a → ⇔toPath {P = a ∈' xs} {Q = a ∈' ys} (rest-equal-1 a) (rest-equal-2 a) i
+      r : xs ≡ ys
+      r = toSet-inj _ _ (
+         toSet xs
+           ≡⟨ sym (>-excluded x xs x>xs) ⟩
+         exclude x (toSet' (x ∷ unsort xs))
+           ≡⟨ (λ i → exclude (x≡y i) (e i)) ⟩
+         exclude y (toSet' (y ∷ unsort ys))
+           ≡⟨ (>-excluded y ys y>ys) ⟩
+         toSet ys ∎)
 
   unsort-inj : ∀ x y → unsort x ≡ unsort y → x ≡ y
   unsort-inj x y e = toSet-inj x y λ i a → a ∈ (e i)
