@@ -4,6 +4,7 @@ module Cubical.Data.Sum.Properties where
 open import Cubical.Core.Everything
 open import Cubical.Foundations.Prelude
 open import Cubical.Foundations.HLevels
+open import Cubical.Foundations.Isomorphism
 open import Cubical.Data.Empty
 open import Cubical.Data.Nat
 
@@ -68,3 +69,26 @@ isOfHLevelSum n lA lB c c' =
     (SumPath.decode c c')
     (SumPath.decodeEncode c c')
     (SumPath.isOfHLevelCover n lA lB c c')
+
+module _ where
+ private
+  variable
+   ℓ₁ ℓ₂ ℓ₃ : Level
+   A : Set ℓ₁
+   B : Set ℓ₂
+   C : Set ℓ₃
+
+ ⊎ˡ-comm-iso : Iso (A ⊎ (B ⊎ C)) (B ⊎ (A ⊎ C))
+ ⊎ˡ-comm-iso = iso swap swap swap-involutive swap-involutive where
+   swap : (A ⊎ (B ⊎ C)) → (B ⊎ (A ⊎ C))
+   swap (inl a) = inr (inl a)
+   swap (inr (inl b)) = inl b
+   swap (inr (inr c)) = inr (inr c)
+
+   swap-involutive : ∀ x → swap {A = A} {B = B} {C = C} (swap x) ≡ x
+   swap-involutive (inl a) = refl
+   swap-involutive (inr (inl b)) = refl
+   swap-involutive (inr (inr c)) = refl
+
+ ⊎ˡ-comm : A ⊎ (B ⊎ C) ≡ B ⊎ (A ⊎ C)
+ ⊎ˡ-comm = isoToPath ⊎ˡ-comm-iso
