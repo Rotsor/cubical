@@ -158,7 +158,7 @@ Pos⇒ℕ⇒Pos p = posInd refl hs p
 ℕ⇒Pos⇒ℕ (suc n) =
   Pos⇒ℕ (ℕ⇒Pos (suc n)) ≡⟨ Pos⇒ℕsucPos (ℕ⇒Pos n) ⟩
   suc (Pos⇒ℕ (ℕ⇒Pos n)) ≡⟨ cong suc (ℕ⇒Pos⇒ℕ n) ⟩
-  suc n ∎ 
+  suc n ∎
 
 ℕ→Binℕ : ℕ → Binℕ
 ℕ→Binℕ zero    = binℕ0
@@ -404,47 +404,45 @@ propDoubleℕ = transport (λ i → propDouble (DoubleBinℕ≡Doubleℕ i)) pro
 -- prove, but the doubling example wouldn't work as nicely as we
 -- cannot define it as an O(1) operation
 
--- 
+-- It turns out that the type is judgementally isomorphic
+-- to Pos, so it can be defined with pattern synonyms:
 binnat : Type₀
 binnat = Pos
-
 pattern zeroB = x1 binℕ0
 pattern consOdd x = x0 x
 pattern consEven x = x1-pos x
 
 binnat→ℕ : binnat → ℕ
-binnat→ℕ zeroB        = 0
-binnat→ℕ (consOdd n)  = suc (doubleℕ (binnat→ℕ n))
-binnat→ℕ (consEven n) = suc (suc (doubleℕ (binnat→ℕ n)))
+binnat→ℕ = Pos⇒ℕ
 
 suc-binnat : binnat → binnat
-suc-binnat zeroB        = consOdd zeroB
-suc-binnat (consOdd n)  = consEven n
-suc-binnat (consEven n) = consOdd (suc-binnat n)
+suc-binnat = sucPos
 
 ℕ→binnat : ℕ → binnat
-ℕ→binnat zero    = zeroB
-ℕ→binnat (suc n) = suc-binnat (ℕ→binnat n)
+ℕ→binnat = ℕ⇒Pos
 
 binnat→ℕ-suc : (n : binnat) → binnat→ℕ (suc-binnat n) ≡ suc (binnat→ℕ n)
-binnat→ℕ-suc zeroB        = refl
-binnat→ℕ-suc (consOdd n)  = refl
-binnat→ℕ-suc (consEven n) = λ i → suc (doubleℕ (binnat→ℕ-suc n i))
+binnat→ℕ-suc = Pos⇒ℕsucPos
 
 ℕ→binnat→ℕ : (n : ℕ) → binnat→ℕ (ℕ→binnat n) ≡ n
-ℕ→binnat→ℕ zero    = refl
-ℕ→binnat→ℕ (suc n) = (binnat→ℕ-suc (ℕ→binnat n)) ∙ (cong suc (ℕ→binnat→ℕ n))
-
-suc-ℕ→binnat-double : (n : ℕ) → suc-binnat (ℕ→binnat (doubleℕ n)) ≡ consOdd (ℕ→binnat n)
-suc-ℕ→binnat-double zero    = refl
-suc-ℕ→binnat-double (suc n) = λ i → suc-binnat (suc-binnat (suc-ℕ→binnat-double n i))
+ℕ→binnat→ℕ = ℕ⇒Pos⇒ℕ
 
 binnat→ℕ→binnat : (n : binnat) → ℕ→binnat (binnat→ℕ n) ≡ n
-binnat→ℕ→binnat zeroB       = refl
-binnat→ℕ→binnat (consOdd n) =
-           (suc-ℕ→binnat-double (binnat→ℕ n)) ∙ (cong consOdd (binnat→ℕ→binnat n))
-binnat→ℕ→binnat (consEven n) =
-           (λ i → suc-binnat (suc-ℕ→binnat-double (binnat→ℕ n) i)) ∙ (cong consEven (binnat→ℕ→binnat n))
+binnat→ℕ→binnat = Pos⇒ℕ⇒Pos
+
+module Alternative-proof where
+  -- We could use this proof instead of `posInd` and `Pos⇒ℕ⇒Pos`.
+  -- It looks simpler.
+  suc-ℕ→binnat-double : (n : ℕ) → suc-binnat (ℕ→binnat (doubleℕ n)) ≡ consOdd (ℕ→binnat n)
+  suc-ℕ→binnat-double zero    = refl
+  suc-ℕ→binnat-double (suc n) = λ i → suc-binnat (suc-binnat (suc-ℕ→binnat-double n i))
+
+  binnat→ℕ→binnat' : (n : binnat) → ℕ→binnat (binnat→ℕ n) ≡ n
+  binnat→ℕ→binnat' zeroB       = refl
+  binnat→ℕ→binnat' (consOdd n) =
+             (suc-ℕ→binnat-double (binnat→ℕ n)) ∙ (cong consOdd (binnat→ℕ→binnat n))
+  binnat→ℕ→binnat' (consEven n) =
+             (λ i → suc-binnat (suc-ℕ→binnat-double (binnat→ℕ n) i)) ∙ (cong consEven (binnat→ℕ→binnat n))
 
 ℕ≃binnat : ℕ ≃ binnat
 ℕ≃binnat = isoToEquiv (iso ℕ→binnat binnat→ℕ binnat→ℕ→binnat ℕ→binnat→ℕ)
