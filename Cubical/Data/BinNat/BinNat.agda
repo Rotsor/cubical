@@ -404,27 +404,30 @@ propDoubleℕ = transport (λ i → propDouble (DoubleBinℕ≡Doubleℕ i)) pro
 -- prove, but the doubling example wouldn't work as nicely as we
 -- cannot define it as an O(1) operation
 
-data binnat : Type₀ where
-  zero     : binnat            -- 0
-  consOdd  : binnat → binnat   -- 2*n + 1
-  consEven : binnat → binnat   -- 2*{n+1}
+-- 
+binnat : Type₀
+binnat = Pos
+
+pattern zeroB = x1 binℕ0
+pattern consOdd x = x0 x
+pattern consEven x = x1-pos x
 
 binnat→ℕ : binnat → ℕ
-binnat→ℕ zero         = 0
+binnat→ℕ zeroB        = 0
 binnat→ℕ (consOdd n)  = suc (doubleℕ (binnat→ℕ n))
 binnat→ℕ (consEven n) = suc (suc (doubleℕ (binnat→ℕ n)))
 
 suc-binnat : binnat → binnat
-suc-binnat zero         = consOdd zero
+suc-binnat zeroB        = consOdd zeroB
 suc-binnat (consOdd n)  = consEven n
 suc-binnat (consEven n) = consOdd (suc-binnat n)
 
 ℕ→binnat : ℕ → binnat
-ℕ→binnat zero    = zero
+ℕ→binnat zero    = zeroB
 ℕ→binnat (suc n) = suc-binnat (ℕ→binnat n)
 
 binnat→ℕ-suc : (n : binnat) → binnat→ℕ (suc-binnat n) ≡ suc (binnat→ℕ n)
-binnat→ℕ-suc zero         = refl
+binnat→ℕ-suc zeroB        = refl
 binnat→ℕ-suc (consOdd n)  = refl
 binnat→ℕ-suc (consEven n) = λ i → suc (doubleℕ (binnat→ℕ-suc n i))
 
@@ -437,7 +440,7 @@ suc-ℕ→binnat-double zero    = refl
 suc-ℕ→binnat-double (suc n) = λ i → suc-binnat (suc-binnat (suc-ℕ→binnat-double n i))
 
 binnat→ℕ→binnat : (n : binnat) → ℕ→binnat (binnat→ℕ n) ≡ n
-binnat→ℕ→binnat zero        = refl
+binnat→ℕ→binnat zeroB       = refl
 binnat→ℕ→binnat (consOdd n) =
            (suc-ℕ→binnat-double (binnat→ℕ n)) ∙ (cong consOdd (binnat→ℕ→binnat n))
 binnat→ℕ→binnat (consEven n) =
@@ -454,11 +457,11 @@ _+binnat_ : binnat → binnat → binnat
 _+binnat_ = transport (λ i → ℕ≡binnat i → ℕ≡binnat i → ℕ≡binnat i) _+_
 
 -- Test: 4 + 1 = 5
-_ : consEven (consOdd zero) +binnat consOdd zero ≡ consOdd (consEven zero)
+_ : consEven (consOdd zeroB) +binnat consOdd zeroB ≡ consOdd (consEven zeroB)
 _ = refl
 
 oddbinnat : binnat → Bool
-oddbinnat zero         = false
+oddbinnat zeroB        = false
 oddbinnat (consOdd _)  = true
 oddbinnat (consEven _) = false
 
@@ -468,20 +471,20 @@ oddℕ' = transport (λ i → ℕ≡binnat (~ i) → Bool) oddbinnat
 -- The NatImpl example for this representation of binary numbers
 private
   NatImplbinnat : NatImpl binnat
-  z NatImplbinnat = zero
+  z NatImplbinnat = zeroB
   s NatImplbinnat = suc-binnat
 
   -- Note that the s case is a bit simpler as no end-point correction
   -- is necessary (things commute strictly)
   NatImplℕ≡NatImplbinnat : PathP (λ i → NatImpl (ℕ≡binnat i)) NatImplℕ NatImplbinnat
-  z (NatImplℕ≡NatImplbinnat i) = transp (λ j → ℕ≡binnat (i ∨ ~ j)) i zero
+  z (NatImplℕ≡NatImplbinnat i) = transp (λ j → ℕ≡binnat (i ∨ ~ j)) i zeroB
   s (NatImplℕ≡NatImplbinnat i) =
     λ x → glue (λ { (i = i0) → suc x
                   ; (i = i1) → suc-binnat x })
                (suc-binnat (unglue (i ∨ ~ i) x))
 
   oddSuc : (n : binnat) → oddbinnat n ≡ not (oddbinnat (suc-binnat n))
-  oddSuc zero         = refl
+  oddSuc zeroB        = refl
   oddSuc (consOdd _)  = refl
   oddSuc (consEven _) = refl
 
