@@ -8,12 +8,12 @@ open import Cubical.Data.Nat
 open import Cubical.Data.BinNat
 open import Cubical.Data.Sigma
 open import Cubical.Data.Bool
-open import Cubical.Data.Empty
+open import Cubical.Data.Empty hiding (⊥)
 open import Cubical.Data.Unit
 open import Cubical.HITs.Rational
 open import Cubical.Foundations.HLevels
 open import Cubical.Foundations.Everything
--- open import Cubical.Foundations.Logic
+open import Cubical.Foundations.Logic
 open import Cubical.Relation.Nullary
 
 private
@@ -113,17 +113,19 @@ dya-elim : ∀ (P : Dya → Set)
 dya-elim P c r (con n e) = c n e
 dya-elim P c r (reduce n e i) = r n e i  
 
-is-normal : Bin₀ → ℕ → Set
-is-normal n zero = Unit
+is-normal : Bin₀ → ℕ → hProp
+is-normal n zero = ⊤
 is-normal zero (suc e) = ⊥
 is-normal (pos (x0 x)) (suc e) = ⊥
-is-normal (pos (x1 x)) (suc e) = Unit
+is-normal (pos (x1 x)) (suc e) = ⊤
 
-data Dya-normal : Type₀ where
-  con : (n : Bin₀) (e : ℕ) → is-normal n e → Dya-normal
+Pair = (Bin₀ × ℕ)
+
+Dya-normal : Type₀
+Dya-normal = Σ Pair (λ { (n , e) → [ is-normal n e ] })
 
 of-normal : Dya-normal → Dya
-of-normal (con n e _) = con n e
+of-normal ((n , e) , _) = con n e
 
 norm : Dya → Set
 norm x = Σ _ (λ y → of-normal y ≡ x)
@@ -132,10 +134,10 @@ normalize+prf : (x : Dya) → norm x
 normalize+prf = dya-elim norm c r where
 
   c : ∀ n e → norm (con n e)
-  c n zero = con n zero tt , refl
+  c n zero = ((n , zero) , tt) , refl
   c zero         (suc e) = transp (λ i → norm (reduce zero    e (~ i))) i0 (c zero    e)
   c (pos (x0 x)) (suc e) = transp (λ i → norm (reduce (pos x) e (~ i))) i0 (c (pos x) e)
-  c (pos (x1 x)) (suc e) = con (pos (x1 x)) (suc e) tt , refl
+  c (pos (x1 x)) (suc e) = (((pos (x1 x)), (suc e)), tt) , refl
 
   r : ∀ n e → PathP (λ i → norm (reduce n e i)) (c (double n) (suc e)) (c n e)
   r zero    e = λ i → transp (λ j → norm (reduce zero    e (~ j ∨ i))) i (c zero    e)
@@ -158,8 +160,20 @@ module Unimportant where
   reduce-unreduce (con n e) = reduce n e
 
 prf2 : ∀ x → normalize (of-normal x) ≡ x
-prf2 (con n zero _) = refl
-prf2 (con (pos (x1 x)) (suc e) _) = refl
+prf2 ((n , zero) , _) = refl
+prf2 (((pos (x1 x)), (suc e)), _) = refl
 
 dya-normalization : Dya ≃ Dya-normal
 dya-normalization = isoToEquiv (iso normalize of-normal prf2 (λ x → snd (normalize+prf x)))
+
+Bin₀-isSet : isSet Bin₀
+Bin₀-isSet = {!!}
+
+Pair-isSet : isSet Pair
+Pair-isSet = isOfHLevelΣ 2 Bin₀-isSet λ _ → isSetℕ
+
+Dya-normal-isSet : isSet Dya-normal
+Dya-normal-isSet = isOfHLevelΣ 2 Pair-isSet λ { (n , e) → isProp→isSet (snd (is-normal n e)) }
+
+Dya-isSet : isSet Dya
+Dya-isSet = transport (λ i → isSet (ua dya-normalization (~ i))) Dya-normal-isSet 
