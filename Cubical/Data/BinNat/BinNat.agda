@@ -144,6 +144,19 @@ Pos→ℕsucPos p = cong suc (Binℕ⇒Pos⇒ℕ (binℕpos p))
 ℕ→Pos zero = pos1
 ℕ→Pos (suc n) = ℕ⇒Pos n
 
+
+module Alternative-proof where
+  suc-ℕ⇒Pos-double : (n : ℕ) → sucPos (ℕ⇒Pos (doubleℕ n)) ≡ x0 (ℕ⇒Pos n)
+  suc-ℕ⇒Pos-double zero    = refl
+  suc-ℕ⇒Pos-double (suc n) = λ i → sucPos (sucPos (suc-ℕ⇒Pos-double n i))
+
+  Pos⇒ℕ⇒Pos : (n : Pos) → ℕ⇒Pos (Pos⇒ℕ n) ≡ n
+  Pos⇒ℕ⇒Pos (x1 binℕ0)        = refl
+  Pos⇒ℕ⇒Pos (x0 n) =
+             (suc-ℕ⇒Pos-double (Pos⇒ℕ n)) ∙ (cong x0 (Pos⇒ℕ⇒Pos n))
+  Pos⇒ℕ⇒Pos (x1 (binℕpos n)) =
+             (λ i → sucPos (suc-ℕ⇒Pos-double (Pos⇒ℕ n) i)) ∙ (cong (λ x → x1 (binℕpos x)) (Pos⇒ℕ⇒Pos n))
+
 Pos⇒ℕ⇒Pos : (p : Pos) → ℕ⇒Pos (Pos⇒ℕ p) ≡ p
 Pos⇒ℕ⇒Pos p = posInd refl hs p
   where
@@ -159,6 +172,10 @@ Pos⇒ℕ⇒Pos p = posInd refl hs p
   Pos⇒ℕ (ℕ⇒Pos (suc n)) ≡⟨ Pos⇒ℕsucPos (ℕ⇒Pos n) ⟩
   suc (Pos⇒ℕ (ℕ⇒Pos n)) ≡⟨ cong suc (ℕ⇒Pos⇒ℕ n) ⟩
   suc n ∎
+
+-- Pos is isomorphic to ℕ with conversions being increment/decrement
+ℕ≃Pos : ℕ ≃ Pos
+ℕ≃Pos = isoToEquiv (iso ℕ⇒Pos Pos⇒ℕ Pos⇒ℕ⇒Pos ℕ⇒Pos⇒ℕ)
 
 ℕ→Binℕ : ℕ → Binℕ
 ℕ→Binℕ zero    = binℕ0
@@ -409,42 +426,45 @@ data binnat : Type₀ where
   consOdd  : binnat → binnat   -- 2*n + 1
   consEven : binnat → binnat   -- 2*{n+1}
 
+-- In fact this type isomorphic to Pos in a trivial way:
+binnat⇒Pos : binnat → Pos
+binnat⇒Pos zero = pos1
+binnat⇒Pos (consOdd x) = x0 (binnat⇒Pos x)
+binnat⇒Pos (consEven x) = x1-pos (binnat⇒Pos x)
+
+Pos⇒binnat : Pos → binnat
+Pos⇒binnat pos1 = zero
+Pos⇒binnat (x0 x) = consOdd (Pos⇒binnat x)
+Pos⇒binnat (x1-pos x) = consEven (Pos⇒binnat x)
+
+Pos≃binnat : Pos ≃ binnat
+Pos≃binnat = isoToEquiv (iso Pos⇒binnat binnat⇒Pos prf1 prf2) where
+  prf1 : ∀ x → Pos⇒binnat (binnat⇒Pos x) ≡ x
+  prf1 zero = refl
+  prf1 (consOdd x) = cong consOdd (prf1 x)
+  prf1 (consEven x) = cong consEven (prf1 x)
+
+  prf2 : ∀ x → binnat⇒Pos (Pos⇒binnat x) ≡ x
+  prf2 pos1 = refl
+  prf2 (x0 x) = cong x0 (prf2 x)
+  prf2 (x1-pos x) = cong x1-pos (prf2 x)
+
 binnat→ℕ : binnat → ℕ
 binnat→ℕ zero         = 0
 binnat→ℕ (consOdd n)  = suc (doubleℕ (binnat→ℕ n))
 binnat→ℕ (consEven n) = suc (suc (doubleℕ (binnat→ℕ n)))
 
-suc-binnat : binnat → binnat
-suc-binnat zero         = consOdd zero
-suc-binnat (consOdd n)  = consEven n
-suc-binnat (consEven n) = consOdd (suc-binnat n)
+binnat→ℕ' : binnat → ℕ
+binnat→ℕ' = transport (λ i → ua Pos≃binnat i → ℕ) Pos⇒ℕ
 
 ℕ→binnat : ℕ → binnat
-ℕ→binnat zero    = zero
-ℕ→binnat (suc n) = suc-binnat (ℕ→binnat n)
+ℕ→binnat = transport (λ i → ℕ → ua Pos≃binnat i) ℕ⇒Pos
 
-binnat→ℕ-suc : (n : binnat) → binnat→ℕ (suc-binnat n) ≡ suc (binnat→ℕ n)
-binnat→ℕ-suc zero         = refl
-binnat→ℕ-suc (consOdd n)  = refl
-binnat→ℕ-suc (consEven n) = λ i → suc (doubleℕ (binnat→ℕ-suc n i))
-
-ℕ→binnat→ℕ : (n : ℕ) → binnat→ℕ (ℕ→binnat n) ≡ n
-ℕ→binnat→ℕ zero    = refl
-ℕ→binnat→ℕ (suc n) = (binnat→ℕ-suc (ℕ→binnat n)) ∙ (cong suc (ℕ→binnat→ℕ n))
-
-suc-ℕ→binnat-double : (n : ℕ) → suc-binnat (ℕ→binnat (doubleℕ n)) ≡ consOdd (ℕ→binnat n)
-suc-ℕ→binnat-double zero    = refl
-suc-ℕ→binnat-double (suc n) = λ i → suc-binnat (suc-binnat (suc-ℕ→binnat-double n i))
-
-binnat→ℕ→binnat : (n : binnat) → ℕ→binnat (binnat→ℕ n) ≡ n
-binnat→ℕ→binnat zero        = refl
-binnat→ℕ→binnat (consOdd n) =
-           (suc-ℕ→binnat-double (binnat→ℕ n)) ∙ (cong consOdd (binnat→ℕ→binnat n))
-binnat→ℕ→binnat (consEven n) =
-           (λ i → suc-binnat (suc-ℕ→binnat-double (binnat→ℕ n) i)) ∙ (cong consEven (binnat→ℕ→binnat n))
+suc-binnat : binnat → binnat
+suc-binnat = transport (λ i → ua Pos≃binnat i → ua Pos≃binnat i) sucPos
 
 ℕ≃binnat : ℕ ≃ binnat
-ℕ≃binnat = isoToEquiv (iso ℕ→binnat binnat→ℕ binnat→ℕ→binnat ℕ→binnat→ℕ)
+ℕ≃binnat = compEquiv ℕ≃Pos Pos≃binnat
 
 ℕ≡binnat : ℕ ≡ binnat
 ℕ≡binnat = ua ℕ≃binnat
@@ -467,20 +487,53 @@ oddℕ' = transport (λ i → ℕ≡binnat (~ i) → Bool) oddbinnat
 
 -- The NatImpl example for this representation of binary numbers
 private
+
+  NatImplPos : NatImpl Pos
+  z NatImplPos = x1 binℕ0
+  s NatImplPos = sucPos
+
   NatImplbinnat : NatImpl binnat
   z NatImplbinnat = zero
   s NatImplbinnat = suc-binnat
 
   -- Note that the s case is a bit simpler as no end-point correction
   -- is necessary (things commute strictly)
-  NatImplℕ≡NatImplbinnat : PathP (λ i → NatImpl (ℕ≡binnat i)) NatImplℕ NatImplbinnat
-  z (NatImplℕ≡NatImplbinnat i) = transp (λ j → ℕ≡binnat (i ∨ ~ j)) i zero
-  s (NatImplℕ≡NatImplbinnat i) =
+  NatImplℕ≡NatImplPos : PathP (λ i → NatImpl (ua ℕ≃Pos i)) NatImplℕ NatImplPos
+  z (NatImplℕ≡NatImplPos i) = transp (λ j → ua ℕ≃Pos (i ∨ ~ j)) i (x1 binℕ0)
+  s (NatImplℕ≡NatImplPos i) =
     λ x → glue (λ { (i = i0) → suc x
-                  ; (i = i1) → suc-binnat x })
-               (suc-binnat (unglue (i ∨ ~ i) x))
+                  ; (i = i1) → sucPos x })
+               (sucPos (unglue (i ∨ ~ i) x))
 
-  oddSuc : (n : binnat) → oddbinnat n ≡ not (oddbinnat (suc-binnat n))
+  NatImplPos≡NatImplbinnat : PathP (λ i → NatImpl (ua Pos≃binnat i)) NatImplPos NatImplbinnat
+  z (NatImplPos≡NatImplbinnat i) = glue (λ { (i = i0) → x1 binℕ0; (i = i1) → zero }) zero
+  s (NatImplPos≡NatImplbinnat i) = transp (λ j → ua Pos≃binnat (j ∧ i) → ua Pos≃binnat (j ∧ i)) (~ i) sucPos 
+
+  ℕ≃binnat-paths-equal : ua ℕ≃binnat ≡ (ua ℕ≃Pos ∙ ua Pos≃binnat)
+  ℕ≃binnat-paths-equal = {!!}
+
+  p0 : NatImpl ℕ ≡ NatImpl binnat
+  p0 =
+    (λ j →
+     ((λ i → NatImpl (ua ℕ≃Pos i)) ∙ (λ i → NatImpl (ua Pos≃binnat i)))
+    j)
+
+  p1 : NatImpl ℕ ≡ NatImpl binnat
+  p1 =
+    (λ j →
+     NatImpl (((λ i →  (ua ℕ≃Pos i)) ∙ (λ i → (ua Pos≃binnat i)))
+    j))
+
+  prf : p0 ≡ p1
+  prf = {!!}
+
+  NatImplℕ≡NatImplbinnat : PathP (λ i → NatImpl (ua ℕ≃binnat i)) NatImplℕ NatImplbinnat
+  NatImplℕ≡NatImplbinnat =
+    transport
+      (λ j → PathP (λ i → NatImpl (ℕ≃binnat-paths-equal (~ j) i)) NatImplℕ NatImplbinnat)
+      {!(compPathP NatImplℕ≡NatImplPos NatImplPos≡NatImplbinnat)!}
+
+{-  oddSuc : (n : binnat) → oddbinnat n ≡ not (oddbinnat (suc-binnat n))
   oddSuc zero         = refl
   oddSuc (consOdd _)  = refl
   oddSuc (consEven _) = refl
@@ -492,3 +545,4 @@ private
     in transport
          (λ i → (n : ℕ≡binnat (~ i)) → eq i n ≡ not (eq i (NatImplℕ≡NatImplbinnat (~ i) .NatImpl.s n)))
          oddSuc
+-}
